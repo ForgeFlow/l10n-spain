@@ -4,31 +4,45 @@
 
 from odoo.tests import common
 from odoo import fields
+from odoo.exceptions import ValidationError
 
 
 class TestInvoiceSequence(common.SavepointCase):
     @classmethod
     def setUpClass(cls):
         super(TestInvoiceSequence, cls).setUpClass()
+
+        # Company
+        cls.company = cls.env.ref('base.main_company')
+
+        # Company 2
+        cls.company_2 = cls.env['res.company'].create({
+            'name': 'Company 2',
+        })
+
         cls.sequence = cls.env['ir.sequence'].create({
             'name': 'Test account move sequence',
             'padding': 3,
+            'company_id': cls.company.id,
             'prefix': 'tAM',
         })
         cls.invoice_sequence = cls.env['ir.sequence'].create({
             'name': 'Test invoice sequence',
             'padding': 3,
+            'company_id': cls.company.id,
             'prefix': 'tINV',
         })
         cls.refund_sequence = cls.env['ir.sequence'].create({
             'name': 'Test refund sequence',
             'padding': 3,
+            'company_id': cls.company.id,
             'prefix': 'tREF',
         })
         cls.journal = cls.env['account.journal'].create({
             'name': 'Test Sales Journal',
             'code': 'tVEN',
             'type': 'sale',
+            'company_id': cls.company.id,
             'sequence_id': cls.sequence.id,
             'update_posted': True,
             'invoice_sequence_id': cls.invoice_sequence.id,
@@ -38,6 +52,7 @@ class TestInvoiceSequence(common.SavepointCase):
             'name': 'Test Sales Journal 2',
             'code': 'tVEN2',
             'type': 'sale',
+            'company_id': cls.company.id,
             'sequence_id': cls.sequence.id,
             'update_posted': True,
             'invoice_sequence_id': cls.invoice_sequence.id,
@@ -49,12 +64,14 @@ class TestInvoiceSequence(common.SavepointCase):
         cls.account = cls.env['account.account'].create({
             'name': 'Test account',
             'code': 'TEST',
+            'company_id': cls.company.id,
             'user_type_id': cls.account_type.id,
             'reconcile': True,
         })
         cls.account_income = cls.env['account.account'].create({
             'name': 'Test income account',
             'code': 'INCOME',
+            'company_id': cls.company.id,
             'user_type_id': cls.env['account.account.type'].create(
                 {'name': 'Test income'}).id,
         })
@@ -86,7 +103,7 @@ class TestInvoiceSequence(common.SavepointCase):
         invoice = self.env['account.invoice'].create({
             'journal_id': self.journal.id,
             'account_id': self.account.id,
-            'company_id': self.env.user.company_id.id,
+            'company_id': self.company.id,
             'currency_id': self.env.user.company_id.currency_id.id,
             'partner_id': self.env['res.partner'].create({'name': 'Test'}).id,
             'invoice_line_ids': [(0, 0, {
@@ -112,7 +129,7 @@ class TestInvoiceSequence(common.SavepointCase):
             'journal_id': self.journal.id,
             'account_id': self.account.id,
             'type': 'out_refund',
-            'company_id': self.env.user.company_id.id,
+            'company_id': self.company.id,
             'currency_id': self.env.user.company_id.currency_id.id,
             'partner_id': self.env['res.partner'].create({'name': 'Test'}).id,
             'invoice_line_ids': [(0, 0, {
@@ -132,7 +149,7 @@ class TestInvoiceSequence(common.SavepointCase):
             'journal_id': self.journal2.id,
             'account_id': self.account.id,
             'type': 'out_refund',
-            'company_id': self.env.user.company_id.id,
+            'company_id': self.company.id,
             'currency_id': self.env.user.company_id.currency_id.id,
             'partner_id': self.env['res.partner'].create({'name': 'Test'}).id,
             'invoice_line_ids': [(0, 0, {
@@ -146,3 +163,15 @@ class TestInvoiceSequence(common.SavepointCase):
         self.assertEqual(invoice.number[:4], 'tINV')
         self.assertEqual(invoice.move_id.name[:3], 'tAM')
         self.assertEqual(invoice.move_id.ref[:4], 'tINV')
+
+    def test_multicompany_01(self):
+        with self.assertRaises(ValidationError):
+            self.journal.company_id = self.company_2
+
+    def test_multicompany_02(self):
+        with self.assertRaises(ValidationError):
+            self.invoice_sequence.company_id = self.company_2
+
+    def test_multicompany_03(self):
+        with self.assertRaises(ValidationError):
+            self.refund_sequence.company_id = self.company_2

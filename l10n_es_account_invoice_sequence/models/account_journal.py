@@ -19,8 +19,7 @@ class AccountJournal(models.Model):
         help="The sequence used for refund invoices numbers in this journal.",
     )
 
-    @api.multi
-    @api.constrains('invoice_sequence_id')
+    @api.constrains('invoice_sequence_id', 'company_id')
     def _check_company(self):
         for journal in self:
             sequence_company = journal.invoice_sequence_id.company_id
@@ -29,8 +28,7 @@ class AccountJournal(models.Model):
                     _("Journal company and invoice sequence company do not "
                       "match."))
 
-    @api.multi
-    @api.constrains('refund_inv_sequence_id')
+    @api.constrains('refund_inv_sequence_id', 'company_id')
     def _check_company_refund(self):
         for journal in self:
             sequence_company = journal.refund_inv_sequence_id.company_id
