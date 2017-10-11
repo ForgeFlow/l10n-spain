@@ -19,7 +19,8 @@ class AccountInvoice(models.Model):
         for inv in self:
             if not inv.invoice_number:
                 sequence = inv.journal_id.invoice_sequence_id
-                if inv.type in {'out_refund', 'in_refund'}:
+                if inv.type in {'out_refund', 'in_refund'} and \
+                        inv.journal_id.refund_inv_sequence_id:
                     sequence = inv.journal_id.refund_inv_sequence_id
                 if sequence:
                     sequence = sequence.with_context(
