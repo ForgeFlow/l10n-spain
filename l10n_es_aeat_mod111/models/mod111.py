@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2015 Ainara Galdona (http://www.avanzosc.es)
 # Copyright 2016 RGB Consulting SL (http://www.rgbconsulting.com)
 # Copyright 2016 Pedro M. Baeza <pedro.baeza@tecnativa.com>

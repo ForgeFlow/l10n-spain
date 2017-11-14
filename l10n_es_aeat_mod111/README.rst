@@ -15,7 +15,7 @@ Uso
 
 Para crear un modelo, por ejemplo de un trimestre del año:
 
-1. Ir a Contabilidad > Informe > Informes legales > Declaraciones AEAT > Modelo 111
+1. Ir a Facturación > Declaraciones AEAT > Modelo 111
 2. Pulsar en el botón "Crear"
 3. Seleccionar el ejercicio fiscal y el tipo de período, los periodos incluidos
    se calculan automáticamente
@@ -86,6 +86,7 @@ de las siguientes empresas (por orden alfabético):
 * `Tecnativa <https://www.tecnativa.com>`_
 * `Trey <https://www.trey.es>`_
 * `Vicent Cubells <http://vcubells.net>`_
+* `Comunitea <https://comunitea.com/>`_
 
 Maintainer
 ----------
