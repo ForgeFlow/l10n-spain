@@ -1,5 +1,5 @@
 # © 2016 Antonio Espinosa <antonio.espinosa@tecnativa.com>
-# License AGPL-3 - See http://www.gnu.org/licenses/agpl-3.0
+# License AGPL-3 - See https://www.gnu.org/licenses/agpl-3.0
 
 import logging
 from odoo.addons.l10n_es_aeat.tests.test_l10n_es_aeat_mod_base import \
