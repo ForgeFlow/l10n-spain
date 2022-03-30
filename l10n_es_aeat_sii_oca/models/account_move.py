@@ -522,7 +522,9 @@ class AccountMove(models.Model):
         for line in self.line_ids:
             sign = -1 if self.move_type[:3] == "out" else 1
             for tax in line.tax_ids:
-                res.setdefault(tax, {"tax": tax, "base": 0, "amount": 0})
+                res.setdefault(
+                    tax, {"tax": tax, "base": 0, "amount": 0, "deductible_amount": 0}
+                )
                 res[tax]["base"] += line.balance * sign
             if line.tax_line_id:
                 tax = line.tax_line_id
@@ -536,8 +538,12 @@ class AccountMove(models.Model):
                 ):
                     # taxes with more than one "tax" repartition line must be discarded
                     continue
-                res.setdefault(tax, {"tax": tax, "base": 0, "amount": 0})
+                res.setdefault(
+                    tax, {"tax": tax, "base": 0, "amount": 0, "deductible_amount": 0}
+                )
                 res[tax]["amount"] += line.balance * sign
+                if line.tax_repartition_line_id.account_id:
+                    res[tax]["deductible_amount"] += line.balance * sign
         return res
 
     def _get_sii_out_taxes(self, tax_lines):  # noqa: C901
@@ -684,6 +690,7 @@ class AccountMove(models.Model):
         taxes_not_in_total_neg = self._get_sii_taxes_map(["NotIncludedInTotalNegative"])
         base_not_in_total = self._get_sii_taxes_map(["BaseNotIncludedInTotal"])
         tax_amount = 0.0
+        tax_deductible_amount = 0.0
         not_in_amount_total = 0.0
         for tax_line in tax_lines.values():
             tax = tax_line["tax"]
@@ -705,6 +712,7 @@ class AccountMove(models.Model):
             tax_dict = self._get_sii_tax_dict(tax_line, tax_lines)
             if tax in taxes_sfrisp + taxes_sfrs:
                 tax_amount += tax_line["amount"]
+                tax_deductible_amount += tax_line["deductible_amount"]
             if tax in taxes_sfrns:
                 tax_dict.pop("TipoImpositivo")
                 tax_dict.pop("CuotaSoportada")
@@ -721,7 +729,7 @@ class AccountMove(models.Model):
                     ["BaseImponible", "CuotaSoportada"],
                 ):
                     base_dict["DetalleIVA"].append(tax_dict)
-        return taxes_dict, tax_amount, not_in_amount_total
+        return taxes_dict, tax_amount, tax_deductible_amount, not_in_amount_total
 
     def _is_sii_simplified_invoice(self):
         """Inheritable method to allow control when an
@@ -900,7 +908,12 @@ class AccountMove(models.Model):
         periodo = "%02d" % fields.Date.to_date(self.date).month
         partner = self._sii_get_partner()
         tax_lines = self._get_tax_info()
-        desglose_factura, tax_amount, not_in_amount_total = self._get_sii_in_taxes(
+        (
+            desglose_factura,
+            tax_amount,
+            tax_deductible_amount,
+            not_in_amount_total,
+        ) = self._get_sii_in_taxes(
             tax_lines
         )
         inv_dict = {
@@ -929,7 +942,7 @@ class AccountMove(models.Model):
                 "Contraparte": {"NombreRazon": partner.name[0:120]},
                 "FechaRegContable": reg_date,
                 "ImporteTotal": amount_total,
-                "CuotaDeducible": tax_amount,
+                "CuotaDeducible": tax_deductible_amount,
             }
             if self.sii_macrodata:
                 inv_dict["FacturaRecibida"].update(Macrodato="S")
