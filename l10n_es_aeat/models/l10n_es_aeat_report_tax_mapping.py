@@ -3,7 +3,11 @@
 # Copyright 2016-2017 Tecnativa - Pedro M. Baeza <pedro.baeza@tecnativa.com>
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
+import logging
+
 from odoo import _, api, exceptions, fields, models
+
+_logger = logging.getLogger(__name__)
 
 
 class L10nEsAeatReportTaxMapping(models.AbstractModel):
@@ -32,6 +36,8 @@ class L10nEsAeatReportTaxMapping(models.AbstractModel):
                  '|',
                  ('date_to', '>=', report.date_end),
                  ('date_to', '=', False)], limit=1)
+            _logger.info("calculate - tax_code_map - id = %s - %d - %s - %s", tax_code_map.id, tax_code_map.model,
+                         str(tax_code_map.date_from), str(tax_code_map.date_to))
             if tax_code_map:
                 tax_lines = []
                 for map_line in tax_code_map.map_line_ids:
@@ -61,6 +67,8 @@ class L10nEsAeatReportTaxMapping(models.AbstractModel):
             map_line.mapped('tax_ids.description'),
             self.date_start, self.date_end, map_line,
         )
+        if map_line.field_number == 29:
+            _logger.info("_prepare_tax_line_vals - move_lines - ids = %s", tuple(move_lines.ids))
         if map_line.sum_type == 'credit':
             amount = sum(move_lines.mapped('credit'))
         elif map_line.sum_type == 'debit':
@@ -136,6 +144,8 @@ class L10nEsAeatReportTaxMapping(models.AbstractModel):
         domain = self._get_move_line_domain(
             codes, date_start, date_end, map_line,
         )
+        if map_line.field_number == 29:
+            _logger.info("_get_tax_lines - domain = %s", domain)
         return self.env['account.move.line'].search(domain)
 
     @api.model
