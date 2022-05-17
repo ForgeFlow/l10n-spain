@@ -7,6 +7,7 @@
 # Copyright 2020 Valentin Vinagre <valent.vinagre@sygel.es>
 # Copyright 2021 Tecnativa - João Marques
 # Copyright 2022 ForgeFlow - Lois Rilo
+# Copyright 2022 NuoBiT Solutions - Eric Antones <eantones@nuobit.com>
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 import json
@@ -539,7 +540,7 @@ class AccountMove(models.Model):
                 res[tax]["amount"] += line.balance * sign
         return res
 
-    def _get_sii_out_taxes(self):  # noqa: C901
+    def _get_sii_out_taxes(self, tax_lines):  # noqa: C901
         """Get the taxes for sales invoices.
 
         :param self: Single invoice record.
@@ -559,7 +560,6 @@ class AccountMove(models.Model):
         base_not_in_total = self._get_sii_taxes_map(["BaseNotIncludedInTotal"])
         not_in_amount_total = 0
         exempt_cause = self._get_sii_exempt_cause(taxes_sfesbe + taxes_sfesse)
-        tax_lines = self._get_tax_info()
         for tax_line in tax_lines.values():
             tax = tax_line["tax"]
             breakdown_taxes = taxes_sfesb + taxes_sfesisp + taxes_sfens + taxes_sfesbe
@@ -668,7 +668,7 @@ class AccountMove(models.Model):
                 return True
         return False
 
-    def _get_sii_in_taxes(self):
+    def _get_sii_in_taxes(self, tax_lines):
         """Get the taxes for purchase invoices.
 
         :param self:  Single invoice record.
@@ -685,7 +685,6 @@ class AccountMove(models.Model):
         base_not_in_total = self._get_sii_taxes_map(["BaseNotIncludedInTotal"])
         tax_amount = 0.0
         not_in_amount_total = 0.0
-        tax_lines = self._get_tax_info()
         for tax_line in tax_lines.values():
             tax = tax_line["tax"]
             if tax in taxes_not_in_total:
@@ -730,6 +729,10 @@ class AccountMove(models.Model):
         partner = self._sii_get_partner()
         is_simplified = partner.sii_simplified_invoice
         return is_simplified
+
+    def _get_sii_base_cost(self, tax_lines):
+        self.ensure_one()
+        return sum([x["base"] for x in tax_lines.values()])
 
     def _sii_check_exceptions(self):
         """Inheritable method for exceptions control when sending SII invoices."""
@@ -815,7 +818,8 @@ class AccountMove(models.Model):
             "PeriodoLiquidacion": {"Ejercicio": ejercicio, "Periodo": periodo},
         }
         if not cancel:
-            tipo_desglose, not_in_amount_total = self._get_sii_out_taxes()
+            tax_lines = self._get_tax_info()
+            tipo_desglose, not_in_amount_total = self._get_sii_out_taxes(tax_lines)
             amount_total = self.amount_total_signed - not_in_amount_total
             inv_dict["FacturaExpedida"] = {
                 "TipoFactura": self._get_sii_invoice_type(),
@@ -843,6 +847,14 @@ class AccountMove(models.Model):
                             self.sii_registration_key_additional2.code
                         )
                     }
+                )
+            if "06" in [
+                self.sii_registration_key.code,
+                self.sii_registration_key_additional1.code,
+                self.sii_registration_key_additional2.code,
+            ]:
+                inv_dict["FacturaExpedida"].update(
+                    {"BaseImponibleACoste": self._get_sii_base_cost(tax_lines)}
                 )
             if self.sii_registration_key.code in ["12", "13"]:
                 inv_dict["FacturaExpedida"]["DatosInmueble"] = {
@@ -887,7 +899,10 @@ class AccountMove(models.Model):
         ejercicio = fields.Date.to_date(self.date).year
         periodo = "%02d" % fields.Date.to_date(self.date).month
         partner = self._sii_get_partner()
-        desglose_factura, tax_amount, not_in_amount_total = self._get_sii_in_taxes()
+        tax_lines = self._get_tax_info()
+        desglose_factura, tax_amount, not_in_amount_total = self._get_sii_in_taxes(
+            tax_lines
+        )
         inv_dict = {
             "IDFactura": {
                 "IDEmisorFactura": {},
@@ -934,13 +949,23 @@ class AccountMove(models.Model):
                         )
                     }
                 )
+            if "06" in [
+                self.sii_registration_key.code,
+                self.sii_registration_key_additional1.code,
+                self.sii_registration_key_additional2.code,
+            ]:
+                inv_dict["FacturaRecibida"].update(
+                    {"BaseImponibleACoste": self._get_sii_base_cost(tax_lines)}
+                )
             # Uso condicional de IDOtro/NIF
             inv_dict["FacturaRecibida"]["Contraparte"].update(ident)
             if self.move_type == "in_refund":
                 rec_dict = inv_dict["FacturaRecibida"]
                 rec_dict["TipoRectificativa"] = self.sii_refund_type
                 if self.sii_refund_type == "S":
-                    refund_tax_amount = self.refund_invoice_id._get_sii_in_taxes()[1]
+                    refund_tax_amount = self.refund_invoice_id._get_sii_in_taxes(
+                        tax_lines
+                    )[1]
                     rec_dict["ImporteRectificacion"] = {
                         "BaseRectificada": abs(
                             self.refund_invoice_id.amount_untaxed_signed
@@ -972,6 +997,7 @@ class AccountMove(models.Model):
                 "CuotaRectificada",
                 "CuotaDeducible",
                 "ImporteCompensacionREAGYP",
+                "BaseImponibleACoste",
             ],
         )
         return inv_dict
