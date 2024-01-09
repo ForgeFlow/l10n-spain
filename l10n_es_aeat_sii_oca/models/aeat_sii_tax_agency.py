@@ -31,7 +31,13 @@ class AeatSiiTaxAgency(models.Model):
         wsdl_key = self.env["account.move"].SII_WDSL_MAPPING[mapping_key]
         wsdl_field = wsdl_key.split(".")[1]
         wsdl_test_field = wsdl_field + "_test_address"
+        port_name = self.env["account.move"].SII_PORT_NAME_MAPPING[mapping_key]
+        address = getattr(self, wsdl_test_field) if company.sii_test else False
+        if not address and company.sii_test:
+            # If not test address is provides we try to get it using the port name.
+            port_name += "Pruebas"
         return {
             "wsdl": getattr(self, wsdl_field),
-            "address": (getattr(self, wsdl_test_field) if company.sii_test else False),
+            "address": address,
+            "port_name": port_name,
         }
