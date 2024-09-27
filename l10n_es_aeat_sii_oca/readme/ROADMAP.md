@@ -9,3 +9,7 @@
 - Soportar facturas de canje de facturas simplificadas por facturas
   completas. Ver <https://github.com/OCA/l10n-spain/issues/1171> para
   más información.
+- El campo aeat_state, definido en aeat.mixin, puede establecer el 
+  estado de envío no solamente al SII, sino también, por ejemplo, 
+  a VERIFACTU, lo que podría ocasionar problemas en caso de que tener
+  que enviar una factura a ambas.
