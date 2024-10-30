@@ -79,7 +79,7 @@
                             groups="account.group_account_invoice"
                             invisible="1"
                         />
-                        <field name="sii_enabled" invisible="1" />
+                        <field name="sii_enabled" />
                         <field name="sii_lc_operation" />
                         <field
                             name="sii_property_location"
