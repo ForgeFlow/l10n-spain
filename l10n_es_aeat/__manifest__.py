@@ -22,18 +22,16 @@
     "website": "https://github.com/OCA/l10n-spain",
     "category": "Accounting & Finance",
     "development_status": "Mature",
-    "depends": ["l10n_es", "account_tax_balance"],
+    "depends": ["l10n_es", "account_tax_balance", "certificate"],
     # odoo_test_helper is needed for the tests
     "external_dependencies": {"python": ["unidecode"]},
     "data": [
         "security/aeat_security.xml",
         "security/ir.model.access.csv",
         "data/aeat_partner.xml",
-        "data/ir_config_parameter.xml",
         "data/aeat_tax_agency_data.xml",
         "wizard/export_to_boe_wizard.xml",
         "wizard/compare_boe_file_views.xml",
-        "wizard/aeat_certificate_password_view.xml",
         "views/aeat_menuitem.xml",  # it should be before the other views
         "views/aeat_map_tax_views.xml",
         "views/aeat_report_view.xml",

@@ -5,6 +5,7 @@
 # Copyright 2023-2024 Aures Tic - Jose Zambudio <jose@aurestic.es>
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 import logging
+import tempfile
 
 from requests import Session
 
@@ -138,12 +139,22 @@ class AeatMixin(models.AbstractModel):
             company=self.company_id
         )
         params = self._connect_params_aeat(mapping_key)
-        session = Session()
-        session.cert = (public_crt, private_key)
-        transport = Transport(session=session)
-        history = HistoryPlugin()
-        client = Client(wsdl=params["wsdl"], transport=transport, plugins=[history])
-        return self._bind_service(client, params["port_name"], params["address"])
+        # Create temporary files to store the certificate and key
+        with (
+            tempfile.NamedTemporaryFile(delete=False, suffix=".crt") as cert_file,
+            tempfile.NamedTemporaryFile(delete=False, suffix=".key") as key_file,
+        ):
+            cert_file.write(public_crt)
+            key_file.write(private_key)
+            cert_file.flush()
+            key_file.flush()
+            # Set up session with certificate and key file paths
+            session = Session()
+            session.cert = (cert_file.name, key_file.name)  # Provide file paths
+            transport = Transport(session=session)
+            history = HistoryPlugin()
+            client = Client(wsdl=params["wsdl"], transport=transport, plugins=[history])
+            return self._bind_service(client, params["port_name"], params["address"])
 
     def _get_aeat_country_code(self):
         self.ensure_one()
