@@ -2,133 +2,88 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html)
 
 import base64
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
-import cryptography
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.serialization import BestAvailableEncryption, pkcs12
-from cryptography.x509 import oid
 
-from odoo import exceptions
-
-from odoo.addons.base.tests.common import BaseCommon
-
-CRYPTOGRAPHY_VERSION_3 = tuple(map(int, cryptography.__version__.split("."))) >= (3, 0)
-if not CRYPTOGRAPHY_VERSION_3:
-    from cryptography.hazmat.backends import default_backend
-
-    def generate_private_key(public_exponent, key_size):
-        return rsa.generate_private_key(
-            public_exponent=public_exponent,
-            key_size=key_size,
-            backend=default_backend(),
-        )
-
-    from OpenSSL import crypto
-
-    def serialize_key_and_certificates(private_key, certificate, password):
-        p12 = crypto.PKCS12()
-        p12.set_privatekey(
-            crypto.load_privatekey(
-                crypto.FILETYPE_PEM,
-                private_key.private_bytes(
-                    encoding=serialization.Encoding.PEM,
-                    format=serialization.PrivateFormat.PKCS8,
-                    encryption_algorithm=serialization.NoEncryption(),
-                ),
-            )
-        )
-        p12.set_certificate(
-            crypto.load_certificate(
-                crypto.FILETYPE_PEM,
-                certificate.public_bytes(
-                    encoding=serialization.Encoding.PEM,
-                ),
-            )
-        )
-        p12data = p12.export(password)
-        return p12data
-
-else:
-    generate_private_key = rsa.generate_private_key
-
-    def serialize_key_and_certificates(private_key, certificate, password):
-        return pkcs12.serialize_key_and_certificates(
-            None,
-            private_key,
-            certificate,
-            None,
-            BestAvailableEncryption(password),
-        )
+from odoo.exceptions import UserError
+from odoo.tests import TransactionCase, tagged
 
 
-class TestL10nEsAeatCertificateBase(BaseCommon):
+@tagged("post_install", "-at_install")
+class TestKeysCertificates(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.certificate_password = b"794613"
-        private_key = generate_private_key(public_exponent=65537, key_size=2048)
-        public_key = private_key.public_key()
-        builder = x509.CertificateBuilder()
-        cls.certificate_name = "Test Certificate"
-        one_day = timedelta(1, 0, 0)
-        builder = (
-            builder.subject_name(
-                x509.Name(
-                    [x509.NameAttribute(oid.NameOID.COMMON_NAME, cls.certificate_name)]
-                )
-            )
-            .issuer_name(
-                x509.Name(
-                    [
-                        x509.NameAttribute(oid.NameOID.COMMON_NAME, "cryptography.io"),
-                    ]
-                )
-            )
-            .not_valid_before(datetime.today() - one_day)
-            .not_valid_after(datetime.today() + (one_day * 30))
-            .serial_number(x509.random_serial_number())
-            .public_key(public_key)
+
+        cls.subject = cls.issuer = x509.Name(
+            [
+                x509.NameAttribute(x509.oid.NameOID.COUNTRY_NAME, "BE"),
+                x509.NameAttribute(
+                    x509.oid.NameOID.STATE_OR_PROVINCE_NAME, "Brabant wallon"
+                ),
+                x509.NameAttribute(x509.oid.NameOID.LOCALITY_NAME, "Grand Rosière"),
+                x509.NameAttribute(x509.oid.NameOID.ORGANIZATION_NAME, "Odoo S.A."),
+                x509.NameAttribute(x509.oid.NameOID.COMMON_NAME, "odoo.com"),
+            ]
         )
-        sign_params = {"private_key": private_key, "algorithm": hashes.SHA256()}
-        if not CRYPTOGRAPHY_VERSION_3:
-            sign_params["backend"] = default_backend()
-        certificate = builder.sign(**sign_params)
-        content = serialize_key_and_certificates(
-            private_key,
-            certificate,
-            cls.certificate_password,
-        )
-        cls.sii_cert = cls.env["l10n.es.aeat.certificate"].create(
+
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        cls.test_key_1 = cls.env["certificate.key"].create(
             {
-                "folder": "Test folder",
-                "file": base64.b64encode(content),
+                "name": "Test key",
+                "content": base64.b64encode(
+                    private_key.private_bytes(
+                        encoding=serialization.Encoding.PEM,
+                        format=serialization.PrivateFormat.PKCS8,
+                        encryption_algorithm=serialization.NoEncryption(),
+                    )
+                ),
             }
         )
 
-    def _activate_certificate(self, passwd=None):
-        """Obtain Keys from .pfx and activate the cetificate"""
-        if not passwd:
-            passwd = self.certificate_password
-        wizard = self.env["l10n.es.aeat.certificate.password"].create(
-            {"password": passwd}
+        cls.certificate_1 = (
+            x509.CertificateBuilder()
+            .subject_name(cls.subject)
+            .issuer_name(cls.issuer)
+            .public_key(private_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.now(timezone.utc) - timedelta(days=10))
+            .not_valid_after(datetime.now(timezone.utc) + timedelta(days=10))
+            .add_extension(
+                x509.SubjectAlternativeName([x509.DNSName("localhost")]),
+                critical=False,
+            )
+            .sign(private_key, hashes.SHA256())
         )
-        wizard.with_context(active_id=self.sii_cert.id).get_keys()
-        self.sii_cert.action_active()
-        self.sii_cert.company_id.write(
-            {"name": "ENTIDAD FICTICIO ACTIVO", "vat": "ESJ7102572J"}
-        )
-        self.assertEqual(self.certificate_name, self.sii_cert.name)
 
-
-class TestL10nEsAeatCertificate(TestL10nEsAeatCertificateBase):
-    def test_activate_certificate(self):
-        self.assertRaises(
-            exceptions.ValidationError,
-            self._activate_certificate,
-            b"Wrong passwd",
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        certificate = cls.env["certificate.certificate"].create(
+            {
+                "name": "Test AEAT Certificate",
+                "content": base64.b64encode(
+                    cls.certificate_1.public_bytes(encoding=serialization.Encoding.PEM)
+                ),
+                "private_key_id": cls.test_key_1.id,
+            }
         )
-        self._activate_certificate(self.certificate_password)
-        self.assertEqual(self.sii_cert.state, "active")
+        cls.sii_cert = cls.env["l10n.es.aeat.certificate"].create(
+            {
+                "certificate_id": certificate.id,
+                "state": "active",
+            }
+        )
+
+    def test_get_certificates(self):
+        pem_certificate, private_key = self.sii_cert.get_certificates()
+        self.assertEqual(pem_certificate, self.sii_cert.certificate_id.pem_certificate)
+        self.assertEqual(
+            private_key, self.sii_cert.certificate_id.private_key_id.pem_key
+        )
+
+        # Test that an error is raised when no valid certificates exist
+        self.sii_cert.state = "draft"
+        with self.assertRaises(UserError):
+            self.sii_cert.get_certificates()

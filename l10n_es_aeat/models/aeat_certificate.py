@@ -15,29 +15,18 @@ class L10nEsAeatCertificate(models.Model):
         selection=[("draft", "Draft"), ("active", "Active")],
         default="draft",
     )
-    file = fields.Binary(required=True)
-    folder = fields.Char(string="Folder Name", required=True)
-    date_start = fields.Date(string="Start Date")
-    date_end = fields.Date(string="End Date")
-    public_key = fields.Char(readonly=True)
-    private_key = fields.Char(readonly=True)
+    certificate_id = fields.Many2one(
+        comodel_name="certificate.certificate",
+        string="Certificate",
+    )
     company_id = fields.Many2one(
         comodel_name="res.company",
         string="Company",
         required=True,
         default=lambda self: self.env.company,
     )
-
-    def load_password_wizard(self):
-        self.ensure_one()
-        return {
-            "type": "ir.actions.act_window",
-            "name": self.env._("Insert Password"),
-            "res_model": "l10n.es.aeat.certificate.password",
-            "view_mode": "form",
-            "views": [(False, "form")],
-            "target": "new",
-        }
+    date_start = fields.Datetime(related="certificate_id.date_start")
+    date_end = fields.Datetime(related="certificate_id.date_end")
 
     def action_active(self):
         self.ensure_one()
@@ -55,28 +44,25 @@ class L10nEsAeatCertificate(models.Model):
         aeat_certificate = self.search(
             [
                 ("company_id", "=", company.id),
-                ("public_key", "!=", False),
-                ("private_key", "!=", False),
+                ("certificate_id", "!=", False),
                 "|",
-                ("date_start", "=", False),
-                ("date_start", "<=", today),
+                ("certificate_id.date_start", "=", False),
+                ("certificate_id.date_start", "<=", today),
                 "|",
-                ("date_end", "=", False),
-                ("date_end", ">=", today),
+                ("certificate_id.date_end", "=", False),
+                ("certificate_id.date_end", ">=", today),
                 ("state", "=", "active"),
             ],
             limit=1,
         )
-        if aeat_certificate:
-            public_crt = aeat_certificate.public_key
-            private_key = aeat_certificate.private_key
-        else:
-            public_crt = self.env["ir.config_parameter"].get_param(
-                "l10n_es_aeat_certificate.publicCrt", False
-            )
-            private_key = self.env["ir.config_parameter"].get_param(
-                "l10n_es_aeat_certificate.privateKey", False
-            )
-        if not public_crt or not private_key:
+        if not aeat_certificate:
             raise exceptions.UserError(self.env._("Error! There aren't certificates."))
+
+        public_crt = aeat_certificate.certificate_id.pem_certificate
+        private_key_record = aeat_certificate.certificate_id.private_key_id
+        if not private_key_record or not private_key_record.pem_key:
+            raise exceptions.UserError(self.env._("Private key is missing or invalid."))
+
+        private_key = private_key_record.pem_key
+
         return public_crt, private_key
