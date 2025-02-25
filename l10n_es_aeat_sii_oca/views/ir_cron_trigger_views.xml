@@ -6,7 +6,7 @@
         <field name="model">ir.cron.trigger</field>
         <field name="priority" eval="9999" />
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="cron_id" />
                 <field name="call_at" />
                 <button
@@ -27,7 +27,7 @@
                     string="Send now"
                     icon="fa-fighter-jet"
                 />
-            </tree>
+            </list>
         </field>
     </record>
 </odoo>

@@ -15,7 +15,8 @@
 import json
 import logging
 
-from odoo import _, api, exceptions, fields, models
+from odoo import api, fields, models
+from odoo.exceptions import UserError
 from odoo.modules.registry import Registry
 from odoo.osv.expression import AND, OR
 
@@ -132,8 +133,8 @@ class AccountMove(models.Model):
         return self.commercial_partner_id
 
     def _raise_exception_sii(self, field_name):
-        raise exceptions.UserError(
-            _(
+        raise UserError(
+            self.env._(
                 "You cannot change the %s of an invoice "
                 "already registered at the SII. You must cancel the "
                 "invoice and create a new one with the correct value"
@@ -149,20 +150,20 @@ class AccountMove(models.Model):
             lambda x: x.is_invoice() and x.aeat_state != "not_sent"
         ):
             if "invoice_date" in vals:
-                self._raise_exception_sii(_("invoice date"))
+                self._raise_exception_sii(self.env._("invoice date"))
             elif "thirdparty_number" in vals:
-                self._raise_exception_sii(_("third-party number"))
+                self._raise_exception_sii(self.env._("third-party number"))
             if invoice.move_type in ["in_invoice", "in_refund"]:
                 if "partner_id" in vals:
                     correct_partners = invoice._aeat_get_partner()
                     correct_partners |= correct_partners.child_ids
                     if vals["partner_id"] not in correct_partners.ids:
-                        self._raise_exception_sii(_("supplier"))
+                        self._raise_exception_sii(self.env._("supplier"))
                 elif "ref" in vals:
-                    self._raise_exception_sii(_("supplier invoice number"))
+                    self._raise_exception_sii(self.env._("supplier invoice number"))
             elif invoice.move_type in ["out_invoice", "out_refund"]:
                 if "name" in vals:
-                    self._raise_exception_sii(_("invoice number"))
+                    self._raise_exception_sii(self.env._("invoice number"))
         return super().write(vals)
 
     def _filter_sii_unlink_not_possible(self):
@@ -184,8 +185,8 @@ class AccountMove(models.Model):
         )
         req_tax = re_lines.mapped("tax_ids") & taxes_req
         if len(req_tax) > 1:
-            raise exceptions.UserError(
-                _("There's a mismatch in taxes for RE. Check them.")
+            raise UserError(
+                self.env._("There's a mismatch in taxes for RE. Check them.")
             )
         return req_tax
 
@@ -424,11 +425,11 @@ class AccountMove(models.Model):
         res = super()._aeat_check_exceptions()
         is_simplified_invoice = self._is_aeat_simplified_invoice()
         if is_simplified_invoice and self.move_type[:2] == "in":
-            raise exceptions.UserError(
-                _("You can't make a supplier simplified invoice.")
-            )
+            error_msg = self.env._("You can't make a supplier simplified invoice.")
+            raise UserError(error_msg)
         if not self.ref and self.move_type in ["in_invoice", "in_refund"]:
-            raise exceptions.UserError(_("The supplier number invoice is required"))
+            error_msg = self.env._("The supplier number invoice is required")
+            raise UserError(error_msg)
         return res
 
     def _get_sii_invoice_type(self):
@@ -708,8 +709,8 @@ class AccountMove(models.Model):
             )
         )
         if not invoices._cancel_sii_triggers():
-            raise exceptions.UserError(
-                _(
+            raise UserError(
+                self.env._(
                     "You can not communicate the cancellation of this invoice "
                     "at this moment. Please, try again later."
                 )
@@ -727,8 +728,8 @@ class AccountMove(models.Model):
 
     def button_cancel(self):
         if not self._cancel_sii_triggers():
-            raise exceptions.UserError(
-                _("You cannot cancel this invoice. Please, try again later.")
+            raise UserError(
+                self.env._("You cannot cancel this invoice. Please, try again later.")
             )
         res = super().button_cancel()
         for invoice in self.filtered(lambda x: x.sii_enabled):
@@ -742,8 +743,8 @@ class AccountMove(models.Model):
 
     def button_draft(self):
         if not self._cancel_sii_triggers():
-            raise exceptions.UserError(
-                _(
+            raise UserError(
+                self.env._(
                     "You can not set to draft this invoice because"
                     " the SII trigger could not be cancelled."
                 )
@@ -919,8 +920,8 @@ class AccountMove(models.Model):
                     .get_param("l10n_es_aeat_sii_oca.sii_batch", "50")
                 )
             except ValueError as e:
-                raise exceptions.UserError(
-                    _(
+                raise UserError(
+                    self.env._(
                         "The value in l10n_es_aeat_sii_oca.sii_batch system"
                         " parameter must be an integer. Please, check the "
                         "value of the parameter."
