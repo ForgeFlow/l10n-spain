@@ -42,75 +42,70 @@
                         <field name="sii_description" required="sii_enabled" />
                         <field name="thirdparty_invoice" />
                         <field
-                            name="thirdparty_number"
-                            required="thirdparty_invoice"
-                            invisible="not thirdparty_invoice"
-                        />
+                        name="thirdparty_number"
+                        required="thirdparty_invoice"
+                        invisible="not thirdparty_invoice"
+                    />
                         <field
-                            name="sii_refund_type"
-                            required="sii_enabled and move_type in ['out_refund','in_refund']"
-                            invisible="move_type not in ['out_refund','in_refund']"
-                        />
+                        name="sii_refund_type"
+                        required="sii_enabled and move_type in ['out_refund','in_refund']"
+                        invisible="move_type not in ['out_refund','in_refund']"
+                    />
                         <field
-                            name="sii_refund_specific_invoice_type"
-                            invisible="move_type != 'out_refund'"
-                        />
-                        <field name="sii_registration_key_domain" invisible="1" />
+                        name="sii_refund_specific_invoice_type"
+                        invisible="move_type != 'out_refund'"
+                    />
                         <field
-                            name="sii_registration_key"
-                            groups="account.group_account_invoice"
-                            domain="[('type', '=', sii_registration_key_domain)]"
-                            required="sii_enabled"
-                            widget="selection"
-                        />
+                        name="sii_registration_key"
+                        groups="account.group_account_invoice"
+                        domain="[('type', '=', sii_registration_key_domain)]"
+                        required="sii_enabled"
+                        widget="selection"
+                    />
                         <field
-                            name="sii_registration_key_additional1"
-                            groups="account.group_account_invoice"
-                            domain="[('type', '=', sii_registration_key_domain)]"
-                            widget="selection"
-                        />
+                        name="sii_registration_key_additional1"
+                        groups="account.group_account_invoice"
+                        domain="[('type', '=', sii_registration_key_domain)]"
+                        widget="selection"
+                    />
                         <field
-                            name="sii_registration_key_additional2"
-                            groups="account.group_account_invoice"
-                            domain="[('type', '=', sii_registration_key_domain)]"
-                            widget="selection"
-                        />
-                        <field
-                            name="sii_registration_key_code"
-                            groups="account.group_account_invoice"
-                            invisible="1"
+                        name="sii_registration_key_additional2"
+                        groups="account.group_account_invoice"
+                        domain="[('type', '=', sii_registration_key_domain)]"
+                        widget="selection"
+                    />
                         />
                         <label for="sii_send_date" />
                         <div
-                            name="sii_send_date"
-                            invisible="aeat_state in ['sent','cancelled']"
-                        >
-                            <field name="sii_send_date" class="oe_inline text-break" />
-                            <button
-                                type="object"
-                                class="oi oi-arrow-right oe_link"
-                                name="send_sii"
-                                string="Send to SII"
-                            />
-                        </div>
-                        <field
-                            name="sii_needs_cancel"
-                            invisible="state != 'cancel' or aeat_state not in ['sent', 'sent_w_errors', 'sent_modified']"
+                        name="sii_send_date"
+                        invisible="aeat_state in ['sent','cancelled']"
+                    >
+                        <field name="sii_send_date" class="oe_inline text-break" />
+                        <button
+                            type="object"
+                            class="oi oi-arrow-right oe_link"
+                            name="send_sii"
+                            string="Send to SII"
                         />
+                    </div>
+                        <field
+                        name="sii_needs_cancel"
+                        invisible="state != 'cancel' or aeat_state not in ['sent', 'sent_w_errors', 'sent_modified']"
+                    />
                         <field name="sii_enabled" invisible="1" />
                         <field name="sii_lc_operation" />
                         <field
-                            name="sii_property_location"
-                            groups="account.group_account_invoice"
-                            invisible="sii_registration_key_code not in ['12', '13'] or move_type not in ['out_invoice', 'out_refund']"
-                            required="sii_registration_key_code in ['12', '13'] and move_type in ['out_invoice', 'out_refund']"
-                        />
+                        name="sii_property_location"
+                        groups="account.group_account_invoice"
+                        invisible="sii_registration_key_code not in ['12', '13'] or move_type not in ['out_invoice', 'out_refund']"
+                        required="sii_registration_key_code in ['12', '13'] and move_type in ['out_invoice', 'out_refund']"
+                    />
                         <field
-                            name="sii_property_cadastrial_code"
-                            groups="account.group_account_invoice"
-                            invisible="sii_registration_key_code not in ['12', '13'] or move_type not in ['out_invoice', 'out_refund']"
-                            required="sii_registration_key_code in ['12', '13'] and sii_property_location in ['1', '2'] and move_type in ['out_invoice', 'out_refund']"
-                        />
+                        name="sii_property_cadastrial_code"
+                        groups="account.group_account_invoice"
+                        invisible="sii_registration_key_code not in ['12', '13'] or move_type not in ['out_invoice', 'out_refund']"
+                        required="sii_registration_key_code in ['12', '13'] and sii_property_location in ['1', '2'] and move_type in ['out_invoice', 'out_refund']"
+                    />
                     </group>
                     <group
                         string="SII Result"

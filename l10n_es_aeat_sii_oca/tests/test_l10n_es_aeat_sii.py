@@ -12,14 +12,14 @@ from odoo import exceptions
 from odoo.tools.misc import file_path
 
 from odoo.addons.l10n_es_aeat.tests.test_l10n_es_aeat_certificate import (
-    TestL10nEsAeatCertificateBase,
+    TestKeysCertificates,
 )
 from odoo.addons.l10n_es_aeat.tests.test_l10n_es_aeat_mod_base import (
     TestL10nEsAeatModBase,
 )
 
 
-class TestL10nEsAeatSiiBase(TestL10nEsAeatModBase, TestL10nEsAeatCertificateBase):
+class TestL10nEsAeatSiiBase(TestL10nEsAeatModBase, TestKeysCertificates):
     @classmethod
     def _get_or_create_tax(cls, xml_id, name, tax_type, percentage, extra_vals=None):
         """Helper for quick-creating a tax with an specific XML-ID"""
@@ -107,7 +107,7 @@ class TestL10nEsAeatSiiBase(TestL10nEsAeatModBase, TestL10nEsAeatCertificateBase
         result_dict = invoice._get_aeat_invoice_dict()
         path = file_path(f"{module}/tests/json/{json_file}")
         if not path:
-            raise Exception("Incorrect JSON file: %s" % json_file)
+            raise Exception(f"Incorrect JSON file: {json_file}")
         with open(path) as f:
             expected_dict = json.loads(f.read())
         self.assertEqual(expected_dict, result_dict)
@@ -148,7 +148,7 @@ class TestL10nEsAeatSiiBase(TestL10nEsAeatModBase, TestL10nEsAeatCertificateBase
             {"name": "Test product", "sii_exempt_cause": "E5"}
         )
         cls.account_expense = cls.env.ref(
-            "account.%s_account_common_600" % cls.company.id
+            f"account.{cls.company.id}_account_common_600"
         )
         cls.invoice = cls._create_invoice("out_invoice")
         cls.company.write(
@@ -211,7 +211,6 @@ class TestL10nEsAeatSii(TestL10nEsAeatSiiBase):
         se añade el campo `partner_shipping_id`, que permite indicar una dirección
         de entrega extracomunitaria para clientes intracomunitarios.
         """
-        self._activate_certificate(self.certificate_password)
         eu_customer = self.env["res.partner"].create(
             {
                 "name": "French Customer",
