@@ -150,7 +150,7 @@ class AeatMixin(models.AbstractModel):
             key_file.flush()
             # Set up session with certificate and key file paths
             session = Session()
-            session.cert = (cert_file.name, key_file.name)  # Provide file paths
+            session.cert = (cert_file.name, key_file.name)
             transport = Transport(session=session)
             history = HistoryPlugin()
             client = Client(wsdl=params["wsdl"], transport=transport, plugins=[history])
