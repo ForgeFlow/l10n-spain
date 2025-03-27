@@ -4,7 +4,7 @@ from . import account_fiscal_position
 from . import account_journal
 from . import account_move
 from . import account_tax
-from . import aeat_certificate
+from . import certificate_certificate
 from . import aeat_mixin
 from . import aeat_soap
 from . import aeat_tax_agency

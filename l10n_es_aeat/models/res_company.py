@@ -69,3 +69,31 @@ class ResCompany(models.Model):
             .res_id
             or False
         )
+
+    # TODO: search first by AEAT scope
+    def get_certificates(self):
+        company = self or self.env.user.company_id
+        today = fields.Date.today()
+        domain = [
+            ("company_id", "=", company.id),
+            ("certificate_id", "!=", False),
+            "|",
+            ("certificate_id.date_start", "=", False),
+            ("certificate_id.date_start", "<=", today),
+            "|",
+            ("certificate_id.date_end", "=", False),
+            ("certificate_id.date_end", ">=", today),
+            ("state", "=", "active"),
+        ]
+        aeat_certificate = self.search(domain)
+        if not aeat_certificate:
+            raise exceptions.UserError(self.env._("Error! There aren't certificates."))
+
+        public_crt = aeat_certificate.certificate_id.pem_certificate
+        private_key_record = aeat_certificate.certificate_id.private_key_id
+        if not private_key_record or not private_key_record.pem_key:
+            raise exceptions.UserError(self.env._("Private key is missing or invalid."))
+
+        private_key = private_key_record.pem_key
+
+        return public_crt, private_key

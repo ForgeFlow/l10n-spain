@@ -135,9 +135,7 @@ class AeatMixin(models.AbstractModel):
 
     def _connect_aeat(self, mapping_key):
         self.ensure_one()
-        public_crt, private_key = self.env["l10n.es.aeat.certificate"].get_certificates(
-            company=self.company_id
-        )
+        public_crt, private_key = self.company_id.get_certificates()
         params = self._connect_params_aeat(mapping_key)
         # Create temporary files to store the certificate and key
         with (
