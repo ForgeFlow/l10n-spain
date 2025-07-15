@@ -10,7 +10,7 @@
                     <field
                         name="l10n_es_applicability"
                         groups="base.group_no_one"
-                        invisible="country_code != 'ES'"
+                        attrs="{'invisible': [('country_code', '!=', 'ES')]}"/>
                     />
                 </field>
             </field>

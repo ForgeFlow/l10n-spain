@@ -13,6 +13,29 @@ class AccountTax(models.Model):
         string="Applicability (Spain)",
     )
 
+    l10n_es_type = fields.Selection(
+        selection=[
+            ('exento', 'Exento'),
+            ('sujeto', 'Sujeto'),
+            ('sujeto_agricultura', 'Sujeto Agricultura'),
+            ('sujeto_isp', 'Sujeto ISP'),
+            ('no_sujeto', 'No Sujeto'),
+            ('no_sujeto_loc', 'No Sujeto por reglas de Localization'),
+            ('no_deducible', 'No Deducible'),
+            ('retencion', 'Retencion'),
+            ('recargo', 'Recargo de Equivalencia'),
+            ('dua', 'DUA'),
+            ('ignore', 'Ignore even the base amount'),
+        ],
+        string="Tax Type (Spain)", default='sujeto'
+    )
+
+    l10n_es_bien_inversion = fields.Boolean('Bien de Inversion', default=False)
+
+    @api.model
+    def _l10n_es_get_main_tax_types(self):
+        return {'exento', 'sujeto', 'sujeto_agricultura', 'sujeto_isp', 'no_sujeto', 'no_sujeto_loc', 'no_deducible'}
+
     @api.model
     def _l10n_es_edi_verifactu_get_tax_types_name_map(self):
         """Return dict: verifactu tax type -> human readable string"""
@@ -149,3 +172,11 @@ class AccountTax(models.Model):
             "grouping_key_generator": grouping_key_generator,
             "filter_to_apply": filter_to_apply,
         }
+
+    @api.model
+    def _l10n_es_get_sujeto_tax_types(self):
+        return ['sujeto', 'sujeto_isp', 'sujeto_agricultura']
+
+    @api.model
+    def _l10n_es_get_main_tax_types(self):
+        return {'exento', 'sujeto', 'sujeto_agricultura', 'sujeto_isp', 'no_sujeto', 'no_sujeto_loc', 'no_deducible'}

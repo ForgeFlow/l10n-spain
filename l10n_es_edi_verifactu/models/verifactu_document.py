@@ -3,17 +3,19 @@ import json
 import logging
 import math
 from datetime import datetime, timedelta
-
+from requests import Session
+from markupsafe import Markup
 import requests.exceptions
 from pytz import timezone
 from werkzeug.urls import url_encode, url_quote_plus
 
 import odoo.release
-from odoo import _, api, fields, models
+from odoo import _, api, fields, models, tools
 from odoo.exceptions import UserError
 from odoo.tools import float_repr, float_round, zeep
-
-from odoo.addons.l10n_es.models.http_adapter import PatchedHTTPAdapter
+from zeep import Transport
+from OpenSSL.crypto import load_certificate, load_privatekey, FILETYPE_PEM
+from odoo.addons.l10n_es_edi_verifactu.models.http_adapter import PatchedHTTPAdapter
 
 _logger = logging.getLogger(__name__)
 
@@ -116,6 +118,20 @@ class L10nEsEdiVerifactuDocument(models.Model):
                 - Accepted: Registered by the AEAT without errors""",
     )
 
+    @api.model
+    def _format_error_html(self, error):
+        """ Format the error that can be either a dict (complex format needed) or a string (simple format) into a
+        valid html format.
+
+        :param error: the error to format.
+        :return: a html formatted error.
+        """
+        if isinstance(error, dict):
+            errors = Markup().join(Markup("<li>%s</li>") % error for error in error['errors'])
+            return Markup("%s<ul>%s</ul>") % (error['error_title'], errors)
+        else:
+            return error
+
     @api.depends("document_type")
     def _compute_display_name(self):
         for document in self:
@@ -205,10 +221,10 @@ class L10nEsEdiVerifactuDocument(models.Model):
     @api.model
     def _format_errors(self, title, errors):
         error = {
-            "error_title": title,
-            "errors": errors,
+            'error_title': title,
+            'errors': errors,
         }
-        return self.env["account.move.send"]._format_error_html(error)
+        return self._format_error_html(error)
 
     ####################################################################
     # Helpers to be used on the records ('account.move' / 'pos.order') #
@@ -483,12 +499,12 @@ class L10nEsEdiVerifactuDocument(models.Model):
                     record_values["company"]
                 )._get_batch_dict([document_dict])
                 try:
-                    create_message(
+                    _xml_node = create_message(
                         batch_dict["Cabecera"], batch_dict["RegistroFactura"]
                     )
                 except zeep.exceptions.ValidationError as error:
                     errors = [_("Validation error: %s", error)]
-                    document_vals["errors"] = self._format_errors(error_title, errors)
+                    document_vals["errors"] = errors
                     _logger.error(
                         "%s\n%s\n%s",
                         error_title,
@@ -1017,80 +1033,76 @@ class L10nEsEdiVerifactuDocument(models.Model):
         1. Send all waiting documents that we can send
         2. Trigger the cron again at a later date to send the documents we could not send
         """
-        unsent_domain = [
-            ("json_attachment", "!=", False),
-            ("state", "=", False),
-        ]
-        documents_per_company = self._read_group(
-            unsent_domain,
-            groupby=["company_id"],
-            aggregates=["id:recordset"],
-        )
-
-        if not documents_per_company:
-            return
-
         next_trigger_time = None
-        for company, documents in documents_per_company:
-            # Avoid sending a document twice due to concurrent calls to `trigger_next_batch`.
-            # This should also avoid concurrently sending in general since the set of documents
-            # in both calls should overlap. (Since we always include all previously unsent documents.)
-            try:
-                self.env["res.company"]._with_locked_records(documents)
-            except UserError:
-                # We will later make sure that we trigger the cron again
+        for company in self.env['res.company'].search([]):
+            unsent_domain = [
+                ("json_attachment", "!=", False),
+                ("state", "=", False),
+                ("company_id", "=", company.id)
+            ]
+            documents_per_company = self.search(unsent_domain)
+            if not documents_per_company:
                 continue
+            for documents in documents_per_company:
+                # Avoid sending a document twice due to concurrent calls to `trigger_next_batch`.
+                # This should also avoid concurrently sending in general since the set of documents
+                # in both calls should overlap. (Since we always include all previously unsent documents.)
+                try:
+                    self.env["res.company"]._with_locked_records(documents)
+                except UserError:
+                    # We will later make sure that we trigger the cron again
+                    continue
 
-            # We choose the language since this function may be executed on the cron.
-            langs = documents.create_uid.mapped("lang")
-            lang = "es_ES" if "es_ES" in langs else langs[0]
-            # We sort the `documents` to batch them in the order they were chained
-            documents = documents.sorted("chain_index").with_context(lang=lang)
+                # We choose the language since this function may be executed on the cron.
+                langs = documents.create_uid.mapped("lang")
+                lang = "es_ES" if "es_ES" in langs else langs[0]
+                # We sort the `documents` to batch them in the order they were chained
+                documents = documents.sorted("chain_index").with_context(lang=lang)
 
-            # Send batches with size BATCH_LIMIT; they are not restricted by the waiting time
-            next_batch = documents[:BATCH_LIMIT]
-            start_index = 0
-            while len(next_batch) == BATCH_LIMIT:
-                next_batch.with_company(company)._send_as_batch()
-                start_index += BATCH_LIMIT
-                next_batch = documents[start_index : start_index + BATCH_LIMIT]
-            # Now: len(next_batch) < BATCH_LIMIT ; we need to respect the waiting time
+                # Send batches with size BATCH_LIMIT; they are not restricted by the waiting time
+                next_batch = documents[:BATCH_LIMIT]
+                start_index = 0
+                while len(next_batch) == BATCH_LIMIT:
+                    next_batch.with_company(company)._send_as_batch()
+                    start_index += BATCH_LIMIT
+                    next_batch = documents[start_index : start_index + BATCH_LIMIT]
+                # Now: len(next_batch) < BATCH_LIMIT ; we need to respect the waiting time
 
-            if not next_batch:
-                continue
+                if not next_batch:
+                    continue
 
-            next_batch_time = company.l10n_es_edi_verifactu_next_batch_time
-            if not next_batch_time or fields.Datetime.now() >= next_batch_time:
-                next_batch.with_company(company)._send_as_batch()
-            else:
-                # Since we have a `next_batch_time` the `next_trigger_time` will be set to a datetime
-                # We set it to the minimum of all the already encountered `next_batch_time`
-                next_trigger_time = min(
-                    next_trigger_time or datetime.max, next_batch_time
+                next_batch_time = company.l10n_es_edi_verifactu_next_batch_time
+                if not next_batch_time or fields.Datetime.now() >= next_batch_time:
+                    next_batch.with_company(company)._send_as_batch()
+                else:
+                    # Since we have a `next_batch_time` the `next_trigger_time` will be set to a datetime
+                    # We set it to the minimum of all the already encountered `next_batch_time`
+                    next_trigger_time = min(
+                        next_trigger_time or datetime.max, next_batch_time
+                    )
+
+            # In case any of the documents were not successfully sent we trigger the cron again in 60s
+            # (or at the next batch time if the 60s is earlier)
+            for documents in documents_per_company:
+                unsent_documents = documents.filtered_domain(unsent_domain)
+                next_batch_time = company.l10n_es_edi_verifactu_next_batch_time
+                if unsent_documents:
+                    # Trigger in 60s or at the next batch time (except if there is an earlier trigger already)
+                    in_60_seconds = fields.Datetime.now() + timedelta(seconds=60)
+                    company_next_trigger_time = max(
+                        in_60_seconds, next_batch_time or datetime.min
+                    )
+                    # Set `next_trigger_time` to the minimum of all the already encountered trigger times
+                    next_trigger_time = min(
+                        next_trigger_time or datetime.max, company_next_trigger_time
+                    )
+
+            if next_trigger_time:
+                cron = self.env.ref(
+                    "l10n_es_edi_verifactu.cron_verifactu_batch", raise_if_not_found=False
                 )
-
-        # In case any of the documents were not successfully sent we trigger the cron again in 60s
-        # (or at the next batch time if the 60s is earlier)
-        for company, documents in documents_per_company:
-            unsent_documents = documents.filtered_domain(unsent_domain)
-            next_batch_time = company.l10n_es_edi_verifactu_next_batch_time
-            if unsent_documents:
-                # Trigger in 60s or at the next batch time (except if there is an earlier trigger already)
-                in_60_seconds = fields.Datetime.now() + timedelta(seconds=60)
-                company_next_trigger_time = max(
-                    in_60_seconds, next_batch_time or datetime.min
-                )
-                # Set `next_trigger_time` to the minimum of all the already encountered trigger times
-                next_trigger_time = min(
-                    next_trigger_time or datetime.max, company_next_trigger_time
-                )
-
-        if next_trigger_time:
-            cron = self.env.ref(
-                "l10n_es_edi_verifactu.cron_verifactu_batch", raise_if_not_found=False
-            )
-            if cron:
-                cron._trigger(at=next_trigger_time)
+                if cron:
+                    cron._trigger(at=next_trigger_time)
 
     @api.model
     def _get_zeep_operation(self, operation):
@@ -1099,16 +1111,8 @@ class L10nEsEdiVerifactuDocument(models.Model):
             raise NotImplementedError(_("Unsupported `operation` '%s'", operation))
 
         company = self.env.company
-
-        session = requests.Session()
-
+        session = Session()
         info = {}
-
-        def response_hook(resp, *args, **kwargs):
-            info["raw_response"] = resp.text
-
-        session.hooks["response"] = response_hook
-
         settings = zeep.Settings(forbid_entities=False, strict=False)
         wsdl = company._l10n_es_edi_verifactu_get_endpoints()["wsdl"]
         client = zeep.Client(
@@ -1122,6 +1126,7 @@ class L10nEsEdiVerifactuDocument(models.Model):
         # Note: using the "certificate" before creating `client` causes an error during the `client` creation
         session.cert = company.sudo()._l10n_es_edi_verifactu_get_certificate()
         session.mount("https://", PatchedHTTPAdapter())
+
 
         service = client.bind(wsdl["service"], wsdl["port"])
 
@@ -1167,8 +1172,8 @@ class L10nEsEdiVerifactuDocument(models.Model):
         try:
             res = register(batch_dict["Cabecera"], batch_dict["RegistroFactura"])
             # `res` is of type 'zeep.client.SerialProxy'
-        except requests.exceptions.SSLError:
-            errors.append(_("The SSL certificate could not be validated."))
+        except requests.exceptions.SSLError as e:
+            errors.append(_("The SSL certificate could not be validated: %s" % e))
         except zeep.exceptions.TransportError as error:
             certificate_error = "No autorizado. Se ha producido un error al verificar el certificado presentado"
             if certificate_error in error.message:
@@ -1316,7 +1321,7 @@ class L10nEsEdiVerifactuDocument(models.Model):
                     document[key] = new_value
 
             # To avoid losing data we commit after every document
-            if self.env["account.move"]._can_commit():
+            if not tools.config["test_enable"]:
                 self._cr.commit()
 
         waiting_time_seconds = info.get("waiting_time_seconds")
@@ -1327,7 +1332,7 @@ class L10nEsEdiVerifactuDocument(models.Model):
 
         self._post_send_hook(info)
 
-        if self.env["account.move"]._can_commit():
+        if not tools.config["test_enable"]:
             self._cr.commit()
 
         return batch_dict, info
