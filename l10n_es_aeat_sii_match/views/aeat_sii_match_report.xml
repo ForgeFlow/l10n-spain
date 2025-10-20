@@ -206,8 +206,8 @@
                     />
                 </group>
             </search>
-         </field>
-     </record>
+        </field>
+    </record>
 
     <!-- Window action -->
     <record id="action_l10n_es_aeat_sii_match_report" model="ir.actions.act_window">
@@ -369,6 +369,6 @@
                     />
                 </group>
             </search>
-         </field>
-     </record>
+        </field>
+    </record>
 </odoo>
