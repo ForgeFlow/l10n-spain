@@ -88,7 +88,6 @@ class SiiMixin(models.AbstractModel):
     sii_enabled = fields.Boolean(
         string="Enable SII",
         compute="_compute_sii_enabled",
-        search="_search_sii_enabled",
     )
     sii_macrodata = fields.Boolean(
         string="MacroData",
@@ -152,16 +151,6 @@ class SiiMixin(models.AbstractModel):
     def _compute_sii_enabled(self):
         raise NotImplementedError
 
-    @api.model
-    def _is_unsupported_search_operator(self, operator):
-        return operator not in ("=", "!=")
-
-    @api.model
-    def _search_sii_enabled(self, operator, value):
-        if self._is_unsupported_search_operator(operator):
-            raise ValueError(_("Unsupported search operator"))
-        return [("company_id.sii_enabled", operator, value)]
-
     def _compute_macrodata(self):
         for document in self:
             document.sii_macrodata = (
@@ -175,8 +164,8 @@ class SiiMixin(models.AbstractModel):
 
     def _filter_sii_unlink_not_possible(self):
         """Filter records that we do not allow to be deleted, all those
-        that are not in not_sent sii status or False."""
-        return self.filtered(lambda rec: rec.aeat_state not in ["not_sent", False])
+        that are not in not_sent sii status."""
+        return self.filtered(lambda rec: rec.aeat_state != "not_sent")
 
     @api.ondelete(at_uninstall=False)
     def _unlink_except_sii(self):
@@ -574,12 +563,11 @@ class SiiMixin(models.AbstractModel):
                     ]["DetalleIVA"]
                     sub.append(self._get_sii_tax_dict(tax_line, tax_lines))
                 if tax in taxes_sfesns:
-                    default_no_taxable_cause = self._get_no_taxable_cause()
                     nsub_dict = service_dict.setdefault(
                         "NoSujeta",
-                        {default_no_taxable_cause: 0},
+                        {"ImporteTAIReglasLocalizacion": 0},
                     )
-                    nsub_dict[default_no_taxable_cause] += tax_line["base"]
+                    nsub_dict["ImporteTAIReglasLocalizacion"] += tax_line["base"]
         # Ajustes finales breakdown
         # - DesgloseFactura y DesgloseTipoOperacion son excluyentes
         # - Ciertos condicionantes obligan DesgloseTipoOperacion
@@ -600,16 +588,11 @@ class SiiMixin(models.AbstractModel):
         """
         self.ensure_one()
         gen_type = self._get_sii_gen_type()
-        partner = self._aeat_get_partner()
         (
             country_code,
             identifier_type,
             identifier,
-        ) = partner._parse_aeat_vat_info()
-        # Take into account some vats construction like Greece
-        vat_country_code = (
-            partner._map_aeat_country_iso_code(partner.country_id) or country_code
-        )
+        ) = self._aeat_get_partner()._parse_aeat_vat_info()
         # Limpiar alfanum
         if identifier:
             identifier = "".join(e for e in identifier if e.isalnum()).upper()
@@ -632,16 +615,14 @@ class SiiMixin(models.AbstractModel):
                     "IDOtro": {
                         "CodigoPais": country_code,
                         "IDType": identifier_type,
-                        "ID": vat_country_code + identifier
-                        if self._aeat_get_partner()._map_aeat_country_code(
-                            vat_country_code
-                        )
+                        "ID": country_code + identifier
+                        if self._aeat_get_partner()._map_aeat_country_code(country_code)
                         in self._aeat_get_partner()._get_aeat_europe_codes()
                         else identifier,
                     },
                 }
         elif gen_type == 2:
-            return {"IDOtro": {"IDType": "02", "ID": vat_country_code + identifier}}
+            return {"IDOtro": {"IDType": "02", "ID": country_code + identifier}}
         elif gen_type == 3 and identifier_type:
             # Si usamos identificador tipo 02 en exportaciones, el envío falla con:
             #   {'CodigoErrorRegistro': 1104,

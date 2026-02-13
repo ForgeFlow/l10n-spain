@@ -15,7 +15,7 @@ class PurchaseOrder(models.Model):
         "editable_states": ["draft", "sent"],
     }
 
-    @api.depends("company_id", "fiscal_position_id", "partner_id")
+    @api.depends("company_id", "fiscal_position_id")
     def _compute_is_sigaus(self):
         return super()._compute_is_sigaus()
 
@@ -65,10 +65,11 @@ class PurchaseOrder(models.Model):
                 for line in a.order_line.filtered("product_id")
             )
         )
-        if not self.env.context.get("avoid_recursion"):
-            f_purchases = sigaus_purchases.filtered("id")
-            f_purchases.automatic_sigaus_exception()
-            f_purchases.apply_sigaus()
+        for purchase in sigaus_purchases.filtered("id"):
+            if self.env.context.get("avoid_recursion"):
+                continue
+            purchase.automatic_sigaus_exception()
+            purchase.apply_sigaus()
         (self - sigaus_purchases).filtered(
             lambda a: (
                 not a.is_sigaus
@@ -84,16 +85,16 @@ class PurchaseOrder(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         purchases = super().create(vals_list)
-        f_purchases = purchases.filtered(
+        for purchase in purchases.filtered(
             lambda a: a.is_sigaus
             and a.sigaus_is_date
             and any(
                 line.product_id.sigaus_has_amount
                 for line in a.order_line.filtered("product_id")
             )
-        )
-        f_purchases.automatic_sigaus_exception()
-        f_purchases.apply_sigaus()
+        ):
+            purchase.automatic_sigaus_exception()
+            purchase.apply_sigaus()
         return purchases
 
     def copy(self, default=None):

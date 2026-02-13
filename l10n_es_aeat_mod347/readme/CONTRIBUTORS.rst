@@ -14,6 +14,3 @@
 * `Sygel <https://www.sygel.es>`_:
 
   * Manuel Regidor
-* `Moduon <https://www.moduon.team>`_:
-
-  * Emilio Pascual

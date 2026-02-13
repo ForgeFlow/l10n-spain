@@ -391,13 +391,6 @@ msgid "ID"
 msgstr "ID"
 
 #. module: l10n_es_aeat_sii_oca
-#: model:ir.model.fields,help:l10n_es_aeat_sii_oca.field_res_company__sii_start_date
-msgid ""
-"If this field is set, the sii won't be enabled on invoices with lower "
-"invoice date. If not set, the sii can be enabled on all invoice dates"
-msgstr ""
-
-#. module: l10n_es_aeat_sii_oca
 #: model:ir.model.fields,help:l10n_es_aeat_sii_oca.field_res_company__delay_time
 #: model:ir.model.fields,help:l10n_es_aeat_sii_oca.field_res_company__sent_time
 msgid "In hours"
@@ -870,11 +863,6 @@ msgid "Sii Refund Specific Invoice Type"
 msgstr ""
 
 #. module: l10n_es_aeat_sii_oca
-#: model:ir.model.fields,field_description:l10n_es_aeat_sii_oca.field_res_company__sii_start_date
-msgid "Sii Start Date"
-msgstr ""
-
-#. module: l10n_es_aeat_sii_oca
 #: model_terms:ir.ui.view,arch_db:l10n_es_aeat_sii_oca.aeat_sii_tax_agency_form_view
 msgid "Suministro Bienes de Inversión"
 msgstr ""
@@ -1044,13 +1032,6 @@ msgstr ""
 #: model_terms:ir.ui.view,arch_db:l10n_es_aeat_sii_oca.aeat_sii_mapping_registration_keys_view_search
 msgid "Type"
 msgstr "Tipo"
-
-#. module: l10n_es_aeat_sii_oca
-#. odoo-python
-#: code:addons/l10n_es_aeat_sii_oca/models/sii_mixin.py:0
-#, python-format
-msgid "Unsupported search operator"
-msgstr ""
 
 #. module: l10n_es_aeat_sii_oca
 #: model:ir.model.fields,field_description:l10n_es_aeat_sii_oca.field_res_company__use_connector

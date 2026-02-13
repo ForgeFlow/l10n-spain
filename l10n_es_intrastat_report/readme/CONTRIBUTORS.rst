@@ -7,7 +7,6 @@
   * Pedro M. Baeza
   * João Marques
   * Víctor Martínez
-  * Juan Carlos Oñate
 
 * `Sygel <https://www.sygel.es>`__:
 

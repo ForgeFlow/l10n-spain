@@ -27,7 +27,6 @@
                     />
                     <field
                         name="redsys_currency"
-                        string="Currency"
                         attrs="{'required': [('code', '=', 'redsys')]}"
                     />
                     <field

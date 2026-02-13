@@ -328,7 +328,9 @@ GLS_PICKUP_ERROR_CODES = {
 }
 
 GLS_TRACKING_LINKS = {
-    "ASM": ("https://mygls.gls-spain.es/e/{}/{}/es"),
+    "ASM": (
+        "http://www.asmred.com/extranet/public/ExpedicionASM.aspx?codigo={}&cpDst={}"
+    ),
     "INT": (
         "https://www.gls-spain.es/en/receiving-parcels/shipping-tracking/"
         "?match={}&international=1"

@@ -48,56 +48,75 @@
                     name="group_exonerated_390"
                     attrs="{'invisible': [('exonerated_390', '=', '2')]}"
                 >
-                    <group string="Actividad principal" name="group_main_activity">
-                        <field
-                            name="main_activity_code"
-                            widget="selection"
-                            attrs="{'required': [('exonerated_390', '!=', '2')]}"
-                        />
-                        <field
-                            name="main_activity_iae"
-                            attrs="{'required': [('exonerated_390', '!=', '2')]}"
-                        />
+                    <group>
+                        <group string="Actividad principal" name="group_main_activity">
+                            <field
+                                name="main_activity_code"
+                                widget="selection"
+                                attrs="{'required': [('exonerated_390', '!=', '2')]}"
+                            />
+                            <field
+                                name="main_activity_iae"
+                                attrs="{'required': [('exonerated_390', '!=', '2')]}"
+                            />
+                        </group>
+                        <group name="group_others_390" string="Otros">
+                            <field name="has_operation_volume" />
+                            <field name="has_347" />
+                            <field name="is_voluntary_sii" />
+                        </group>
                     </group>
-                    <group name="group_others_390" string="Otros">
-                        <field name="has_operation_volume" />
-                        <field name="has_347" />
-                        <field name="is_voluntary_sii" />
-                    </group>
-                    <group
-                        string="Otras - 1ª actividad"
-                        name="group_other_first_activity"
-                    >
-                        <field name="other_first_activity_code" widget="selection" />
-                        <field name="other_first_activity_iae" />
-                    </group>
-                    <group
-                        string="Otras - 2ª actividad"
-                        name="group_other_second_activity"
-                    >
-                        <field name="other_second_activity_code" widget="selection" />
-                        <field name="other_second_activity_iae" />
-                    </group>
-                    <group
-                        string="Otras - 3ª actividad"
-                        name="group_other_third_activity"
-                    >
-                        <field name="other_third_activity_code" widget="selection" />
-                        <field name="other_third_activity_iae" />
-                    </group>
-                    <group
-                        string="Otras - 4ª actividad"
-                        name="group_other_fourth_activity"
-                    >
-                        <field name="other_fourth_activity_code" widget="selection" />
-                        <field name="other_fourth_activity_iae" />
-                    </group>
-                    <group
-                        string="Otras - 5ª actividad"
-                        name="group_other_fifth_activity"
-                    >
-                        <field name="other_fifth_activity_code" widget="selection" />
-                        <field name="other_fifth_activity_iae" />
+                    <group col="3">
+                        <group
+                            string="Otras - 1ª actividad"
+                            name="group_other_first_activity"
+                        >
+                            <field
+                                name="other_first_activity_code"
+                                widget="selection"
+                            />
+                            <field name="other_first_activity_iae" />
+                        </group>
+                        <group
+                            string="Otras - 2ª actividad"
+                            name="group_other_second_activity"
+                        >
+                            <field
+                                name="other_second_activity_code"
+                                widget="selection"
+                            />
+                            <field name="other_second_activity_iae" />
+                        </group>
+                        <group
+                            string="Otras - 3ª actividad"
+                            name="group_other_third_activity"
+                        >
+                            <field
+                                name="other_third_activity_code"
+                                widget="selection"
+                            />
+                            <field name="other_third_activity_iae" />
+                        </group>
+                        <group
+                            string="Otras - 4ª actividad"
+                            name="group_other_fourth_activity"
+                        >
+                            <field
+                                name="other_fourth_activity_code"
+                                widget="selection"
+                            />
+                            <field name="other_fourth_activity_iae" />
+                        </group>
+                        <group
+                            string="Otras - 5ª actividad"
+                            name="group_other_fifth_activity"
+                        >
+                            <field
+                                name="other_fifth_activity_code"
+                                widget="selection"
+                            />
+                            <field name="other_fifth_activity_iae" />
+                        </group>
                     </group>
                 </group>
                 <group
@@ -190,14 +209,16 @@
                     <field name="result_type" />
                 </group>
                 </group>
-                <notebook attrs="{'invisible': [('state', '=', 'draft')]}">
-                    <page string="Valued tax lines">
-                        <field name="valued_tax_line_ids" nolabel="1" readonly="1" />
-                    </page>
-                    <page string="Tax lines">
-                        <field name="tax_line_ids" nolabel="1" readonly="1" />
-                    </page>
-                </notebook>
+                <separator
+                    string="Tax lines"
+                    attrs="{'invisible': [('state', '=', 'draft')]}"
+                />
+                    <field
+                    name="tax_line_ids"
+                    nolabel="1"
+                    readonly="1"
+                    attrs="{'invisible': [('state', '=', 'draft')]}"
+                />
             </group>
             <form position="inside">
                 <div class="oe_chatter">

@@ -186,25 +186,6 @@ class TestL10nEsAeatSii(TestL10nEsAeatSiiBase):
             [("sii_wsdl_out", "!=", False)]
         )
 
-    def test_invoice_search_sii_enabled(self):
-        domain_base = [("id", "=", self.invoice.id)]
-        domain_ok = domain_base + [("sii_enabled", "=", True)]
-        items = self.env["account.move"].search(domain_ok)
-        self.assertIn(self.invoice, items)
-        domain_ko_1 = domain_base + [("sii_enabled", "=", False)]
-        items = self.env["account.move"].search(domain_ko_1)
-        self.assertNotIn(self.invoice, items)
-        domain_ko_2 = domain_base + [("sii_enabled", "!=", True)]
-        items = self.env["account.move"].search(domain_ko_2)
-        self.assertNotIn(self.invoice, items)
-        self.invoice.journal_id.sii_enabled = False
-        items = self.env["account.move"].search(domain_ok)
-        self.assertNotIn(self.invoice, items)
-        items = self.env["account.move"].search(domain_ko_1)
-        self.assertIn(self.invoice, items)
-        items = self.env["account.move"].search(domain_ko_2)
-        self.assertIn(self.invoice, items)
-
     def test_intracomunitary_customer_extracomunitary_delivery(self):
         """Comprobar venta a un cliente intracomunitario enviada al extranjero.
 
@@ -402,7 +383,7 @@ class TestL10nEsAeatSii(TestL10nEsAeatSiiBase):
             invoice.company_id.tax_agency_id = False
             self._check_binding_address(invoice)
 
-    def _test_tax_agencies_sandbox(self):  # Inhibited for now
+    def test_tax_agencies_sandbox(self):
         self.sii_cert.company_id = self.invoice.company_id.id
         self._activate_certificate()
         self.invoice.company_id.sii_test = True
@@ -410,7 +391,7 @@ class TestL10nEsAeatSii(TestL10nEsAeatSiiBase):
         in_invoice = self._create_invoice_for_sii("in_invoice")
         self._check_tax_agencies(in_invoice)
 
-    def _test_tax_agencies_production(self):  # Inhibited for now
+    def test_tax_agencies_production(self):
         self.sii_cert.company_id = self.invoice.company_id.id
         self._activate_certificate()
         self.invoice.company_id.sii_test = False
@@ -531,17 +512,3 @@ class TestL10nEsAeatSii(TestL10nEsAeatSiiBase):
         self.assertEqual(reversal.sii_refund_type, "I")
         self.assertTrue(reversal.sii_refund_type_required)
         self.assertFalse(reversal.supplier_invoice_number_refund_required)
-
-    def test_start_date(self):
-        self.company.sii_start_date = "2018-01-01"
-        invoice1 = self._create_invoice_for_sii("out_invoice")
-        invoice1.invoice_date = "2019-01-01"
-        self.assertTrue(invoice1.sii_enabled)
-        self.assertTrue(invoice1.filtered_domain([("sii_enabled", "=", True)]))
-        invoice2 = self._create_invoice_for_sii("out_invoice")
-        invoice2.invoice_date = "2017-01-01"
-        self.assertFalse(invoice2.sii_enabled)
-        self.assertTrue(invoice2.filtered_domain([("sii_enabled", "=", False)]))
-        self.company.sii_start_date = False
-        self.assertTrue(invoice2.sii_enabled)
-        self.assertTrue(invoice2.filtered_domain([("sii_enabled", "=", True)]))

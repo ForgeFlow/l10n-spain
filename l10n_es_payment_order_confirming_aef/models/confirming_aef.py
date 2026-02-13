@@ -5,11 +5,6 @@
 from odoo import _, fields
 from odoo.exceptions import UserError
 
-try:
-    from unidecode import unidecode
-except ImportError:
-    unidecode = str
-
 
 class ConfirmingAEF(object):
     def __init__(self, record):
@@ -18,9 +13,6 @@ class ConfirmingAEF(object):
 
     def _aef_errors(self):
         validation_errors = []
-        sepa_country_codes = self.record.env.ref("base.sepa_zone").country_ids.mapped(
-            "code"
-        )
         # Nombre ordenante
         if not self.partner_bank:
             validation_errors.append(
@@ -74,14 +66,6 @@ class ConfirmingAEF(object):
                     )
                     % line.partner_id.name
                 )
-            # IBAN o cuenta internacional
-            if line.partner_bank_id.acc_type == "bank":
-                # Si no es IBAN, el proveedor debería ser internacional
-                if line.partner_id.country_id.code in sepa_country_codes:
-                    validation_errors.append(
-                        _("- La cuenta bancaria del proveedor %s no es un IBAN.")
-                        % line.partner_id.name
-                    )
             error = _("Se han encontrado los siguientes errores:\n")
             if validation_errors:
                 error += "\n".join(validation_errors)
@@ -94,7 +78,6 @@ class ConfirmingAEF(object):
         elif isinstance(text, int):
             text = str(text).zfill(size)
         else:
-            text = unidecode(text)
             if justified == "left":
                 text = text[:size].ljust(size)
             else:
@@ -142,11 +125,10 @@ class ConfirmingAEF(object):
         contract_cxb = self.record.payment_mode_id.aef_confirming_contract
         text += self._aef_convert_text(contract_cxb, 20, "left")
         # 103 - 136 Cuenta de cargo
-        cuenta = self.record.company_partner_bank_id.sanitized_acc_number
+        cuenta = self.record.company_partner_bank_id.acc_number.replace(" ", "")
         text += self._aef_convert_text(cuenta, 34, "left")
         # 137 - 139 Código divisa
-        currency = self.record.journal_id.currency_id or self.record.company_currency_id
-        text += self._aef_convert_text(currency.name, 3)
+        text += self._aef_convert_text(self.record.company_currency_id.name, 3)
         # 140 - 140 Estandar / Pronto Pago/ Otros
         text += self._aef_convert_text(
             self.record.payment_mode_id.aef_confirming_modality or "", 1
@@ -220,7 +202,7 @@ class ConfirmingAEF(object):
         text += self.record.payment_mode_id.aef_confirming_type
         # 3 - 36 IBAN
         iban = (
-            line.partner_bank_id.sanitized_acc_number
+            line.partner_bank_id.acc_number.replace(" ", "")
             if (
                 self.record.payment_mode_id.aef_confirming_type == "T"
                 and line.partner_bank_id.acc_type == "iban"
@@ -231,15 +213,7 @@ class ConfirmingAEF(object):
         # 37 - 47 BIC
         text += self._aef_convert_text(line.partner_bank_id.bank_bic, 11, "left")
         # 48 - 81 Cuenta pagos internacionales (sin IBAN)
-        acc_number = (
-            line.partner_bank_id.sanitized_acc_number
-            if (
-                self.record.payment_mode_id.aef_confirming_type == "T"
-                and line.partner_bank_id.acc_type == "bank"
-            )
-            else ""
-        )
-        text += self._aef_convert_text(acc_number, 34, "left")
+        text += self._aef_convert_text("", 34)
         # 82 - 83 Código país banco
         text += line.partner_id.country_id.code
         # 84 - 94 Codigo ABA

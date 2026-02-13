@@ -4,7 +4,6 @@
 # Copyright 2018 Luis M. Ontalba <luismaront@gmail.com>
 # Copyright 2019 Tecnativa - Carlos Dauden
 # Copyright 2022 Moduon Team - Eduardo de Miguel <edu@moduon.team>
-# Copyright 2025 Tecnativa - Pedro M. Baeza
 # License AGPL-3 - See https://www.gnu.org/licenses/agpl-3.0
 import datetime
 import re
@@ -122,11 +121,6 @@ class L10nEsVatBook(models.Model):
     error_count = fields.Integer(
         compute="_compute_error_count",
     )
-    vat_settlement_period = fields.Selection(
-        selection=[("monthly", "Monthly"), ("quarterly", "Quarterly")],
-        default="monthly",
-        required=True,
-    )
 
     def _compute_error_count(self):
         vat_book_exception_group = self.env["l10n.es.vat.book.line"].read_group(
@@ -156,8 +150,6 @@ class L10nEsVatBook(models.Model):
                     "tax_id": tax_line.tax_id.id,
                     "vat_book_id": self.id,
                     "special_tax_group": tax_line.special_tax_group,
-                    "base_move_line_ids": tax_line.base_move_line_ids.ids,
-                    "move_line_ids": tax_line.move_line_ids.ids,
                 }
             tax_summary_data_recs[tax_line.tax_id][
                 "base_amount"
@@ -166,12 +158,6 @@ class L10nEsVatBook(models.Model):
             tax_summary_data_recs[tax_line.tax_id][
                 "total_amount"
             ] += tax_line.total_amount
-            tax_summary_data_recs[tax_line.tax_id][
-                "base_move_line_ids"
-            ] += tax_line.base_move_line_ids.ids
-            tax_summary_data_recs[tax_line.tax_id][
-                "move_line_ids"
-            ] += tax_line.move_line_ids.ids
         return tax_summary_data_recs
 
     @api.model
@@ -236,16 +222,14 @@ class L10nEsVatBook(models.Model):
         ext_ref = ""
         invoice = move_line.move_id
         partner = move_line.partner_id
-        invoice_date = move_line.date
         if invoice:
             if invoice.is_invoice():
                 partner = invoice.commercial_partner_id
-                invoice_date = invoice.invoice_date
             ref = invoice.name
             ext_ref = invoice.ref
         return {
             "line_type": line_type,
-            "invoice_date": invoice_date,
+            "invoice_date": move_line.date,
             "partner_id": partner.id,
             "vat_number": partner.vat,
             "move_id": invoice.id,
@@ -257,41 +241,47 @@ class L10nEsVatBook(models.Model):
             "special_tax_group": False,
         }
 
-    def upsert_book_line_tax(self, move_line, vat_book_line, implied_taxes):
-        tax_lines = vat_book_line["tax_lines"]
-        default_dict = {
-            "base_amount": 0,
-            "tax_amount": 0,
-            "deductible_amount": 0,
-            "base_move_line_ids": [],
-            "move_line_ids": [],
+    def _prepare_book_line_tax_vals(self, move_line, vat_book_line):
+        balance = move_line.credit - move_line.debit
+        if vat_book_line["line_type"] in ["received", "rectification_received"]:
+            balance = -balance
+        base_amount_untaxed = (
+            balance if move_line.tax_ids and not move_line.tax_line_id else 0.0
+        )
+        fee_amount_untaxed = balance if move_line.tax_line_id else 0.0
+        return {
+            "tax_id": move_line.tax_line_id.id,
+            "base_amount": base_amount_untaxed,
+            "tax_amount": fee_amount_untaxed,
+            "move_line_ids": [(4, move_line.id)],
             "special_tax_group": False,
         }
-        sign = -1
-        if vat_book_line["line_type"] in ["received", "rectification_received"]:
-            sign = 1
+
+    def upsert_book_line_tax(self, move_line, vat_book_line, implied_taxes):
+        vals = self._prepare_book_line_tax_vals(move_line, vat_book_line)
+        tax_lines = vat_book_line["tax_lines"]
         if move_line.tax_line_id:
-            res = {}
-            tax = move_line.tax_line_id
-            move_line._process_aeat_tax_fee_info(res, tax, sign)
-            key = self.get_book_line_tax_key(move_line, tax)
-            value = tax_lines.setdefault(key, default_dict | {"tax_id": tax.id})
-            value["tax_amount"] += res[tax]["amount"]
-            value["deductible_amount"] += res[tax]["deductible_amount"]
-            value["move_line_ids"].append((4, move_line.id))
+            key = self.get_book_line_tax_key(move_line, move_line.tax_line_id)
+            if key not in tax_lines:
+                tax_lines[key] = vals
+            else:
+                tax_lines[key]["tax_id"] = move_line.tax_line_id.id
+                tax_lines[key]["tax_amount"] += vals["tax_amount"]
+                tax_lines[key]["move_line_ids"] += vals["move_line_ids"]
         for i, tax in enumerate(move_line.tax_ids):
-            res = {}
-            move_line._process_aeat_tax_base_info(res, tax, sign)
             if i == 0:
-                vat_book_line["base_amount"] += res[tax]["base"]
+                vat_book_line["base_amount"] += vals["base_amount"]
             if tax not in implied_taxes:
                 continue
             key = self.get_book_line_tax_key(move_line, tax)
-            value = tax_lines.setdefault(key, default_dict | {"tax_id": tax.id})
-            value["base_amount"] += res[tax]["base"]
-            value["base_move_line_ids"].append((4, move_line.id))
+            if key not in tax_lines:
+                tax_lines[key] = vals.copy()
+                tax_lines[key]["tax_id"] = tax.id
+            else:
+                tax_lines[key]["base_amount"] += vals["base_amount"]
+                tax_lines[key]["move_line_ids"] += vals["move_line_ids"]
             # For later matching special taxes
-            value["other_tax_ids"] = (move_line.tax_ids - tax).ids
+            tax_lines[key]["other_tax_ids"] = (move_line.tax_ids - tax).ids
 
     def _clear_old_data(self):
         """
@@ -333,6 +323,7 @@ class L10nEsVatBook(models.Model):
             self._account_move_line_domain(taxes=taxes, account=account)
         )
 
+    @ormcache("self.id")
     def get_pos_partner_ids(self):
         return (
             self.env["res.partner"]
@@ -411,9 +402,8 @@ class L10nEsVatBook(models.Model):
                     tax_group = sp_taxes_dic[tax_line["tax_id"]]["special_tax_group"]
                     line_vals["special_tax_group"] = tax_group
                     tax_line["special_tax_group"] = tax_group
-                    if "other_tax_ids" in tax_line:
-                        sp_taxes[tuple(tax_line["other_tax_ids"])] = tax_line
-                tax_line.pop("other_tax_ids", None)
+                    sp_taxes[tuple(tax_line["other_tax_ids"])] = tax_line
+                tax_line.pop("other_tax_ids")
             # Second loop for putting the values in the other lines
             if sp_taxes:
                 for tax_line in tax_lines.values():
@@ -455,29 +445,29 @@ class L10nEsVatBook(models.Model):
                     domain += [
                         ("tax_agency_ids", "in", [False] + rec.tax_agency_ids.ids),
                     ]
-                map_lines = (
-                    self.env["aeat.vat.book.map.line"]
-                    .with_context(active_test=False)
-                    .search(domain)
-                )
+                map_lines = self.env["aeat.vat.book.map.line"].search(domain)
                 taxes = self.env["account.tax"]
                 accounts = {}
                 for map_line in map_lines:
                     line_taxes = map_line.get_taxes(rec)
                     taxes |= line_taxes
-                    if map_line.tax_excluded_account_id:
-                        account = rec.get_account_from_template(
-                            map_line.tax_excluded_account_id
-                        )
+                    if map_line.tax_account_id:
+                        account = rec.get_account_from_template(map_line.tax_account_id)
                         accounts.update({tax: account for tax in line_taxes})
                 # Filter in all possible data using sets for improving performance
-                lines = moves.filtered(
-                    lambda line: line.tax_ids & taxes
-                    or (
-                        line.tax_line_id in taxes
-                        and accounts.get(line.tax_line_id) != line.account_id
+                if accounts:
+                    lines = moves.filtered(
+                        lambda line: line.tax_ids & taxes
+                        or (
+                            line.tax_line_id in taxes
+                            and accounts.get(line.tax_line_id, line.account_id)
+                            == line.account_id
+                        )
                     )
-                )
+                else:
+                    lines = moves.filtered(
+                        lambda line: (line.tax_ids | line.tax_line_id) & taxes
+                    )
                 if map_lines:
                     rec.create_vat_book_lines(lines, map_lines[:1].book_type, taxes)
             # Issued

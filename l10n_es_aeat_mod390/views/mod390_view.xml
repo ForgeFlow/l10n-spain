@@ -193,8 +193,6 @@
                                 class="oe_subtotal_footer_separator"
                                 widget="monetary"
                             />
-                            <field name="casilla_658" widget="monetary" />
-                            <field name="casilla_84" widget="monetary" />
                             <field name="casilla_85" widget="monetary" />
                             <field
                                 name="casilla_86"
@@ -221,14 +219,16 @@
                         </group>
                     </page>
                 </notebook>
-                <notebook attrs="{'invisible': [('state', '=', 'draft')]}">
-                    <page string="Valued tax lines">
-                        <field name="valued_tax_line_ids" nolabel="1" readonly="1" />
-                    </page>
-                    <page string="Tax lines">
-                        <field name="tax_line_ids" nolabel="1" readonly="1" />
-                    </page>
-                </notebook>
+                <separator
+                    string="Tax lines"
+                    attrs="{'invisible': [('state', '=', 'draft')]}"
+                />
+                <field
+                    name="tax_line_ids"
+                    nolabel="1"
+                    readonly="1"
+                    attrs="{'invisible': [('state', '=', 'draft')]}"
+                />
             </group>
             <form position="inside">
                 <div class="oe_chatter">

@@ -48,4 +48,16 @@ class RedsysController(http.Controller):
         website=True,
     )
     def redsys_result(self, page, **vals):
+        _logger.info("handling redirection from PayPal with data:\n%s", pprint.pformat(vals))
+        if not vals:  # The customer has canceled or paid then clicked on "Return to Merchant"
+            pass  # Redirect them to the status page to browse the (currently) draft transaction
+        else:
+            # Check the origin of the notification
+            tx_sudo = request.env['payment.transaction'].sudo()._get_tx_from_notification_data(
+                'redsys', vals
+            )
+            if tx_sudo:
+                # Handle the notification data
+                tx_sudo._handle_notification_data('redsys', vals)
+                
         return request.redirect("/payment/status")

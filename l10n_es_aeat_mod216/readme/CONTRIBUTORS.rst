@@ -6,4 +6,3 @@
 
 * Ainara Galdona <ainara.galdona@avanzosc.es>
 * Eficent - Jordi Ballester
-* Emilio Pascual (`Moduon <https://www.moduon.team/>`__)

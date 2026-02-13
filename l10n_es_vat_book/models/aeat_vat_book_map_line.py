@@ -28,10 +28,9 @@ class AeatVatBookMapLines(models.Model):
         comodel_name="account.tax.template",
         string="Taxes",
     )
-    tax_excluded_account_id = fields.Many2one(
+    tax_account_id = fields.Many2one(
         comodel_name="account.account.template",
         string="Tax Account Restriction",
-        help="Journal items with this account will be excluded",
     )
     tax_agency_ids = fields.Many2many("aeat.tax.agency", string="Tax Agency")
 

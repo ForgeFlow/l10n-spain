@@ -87,7 +87,7 @@ class ResPartner(models.Model):
             europe = self.env["res.country.group"].search(
                 [("name", "=", "Europe")], limit=1
             )
-        return europe.country_ids.mapped("code") + ["XI"]
+        return europe.country_ids.mapped("code")
 
     @ormcache("self.vat, self.country_id")
     def _parse_aeat_vat_info(self):
@@ -97,10 +97,8 @@ class ResPartner(models.Model):
         self.ensure_one()
         vat_number = self.vat or ""
         prefix = vat_number[:2].upper()
-        aeat_country_code = self._map_aeat_country_code(prefix)
-        if aeat_country_code in self._get_aeat_europe_codes():
-            # Return mapped vats like Greece. Take into account mapped countries
-            country_code = aeat_country_code
+        if self._map_aeat_country_code(prefix) in self._get_aeat_europe_codes():
+            country_code = prefix
             vat_number = vat_number[2:]
             identifier_type = "02"
         else:

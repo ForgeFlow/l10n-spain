@@ -11,7 +11,12 @@ _logger = logging.getLogger(__name__)
 
 def post_init_hook(cr, registry):
     """Define Spanish specific configuration in res.country."""
-    env = api.Environment(cr, SUPERUSER_ID, {})
-    spain = env.ref("base.es")
-    _logger.info("Setting Spain NUTS configuration")
-    spain.write({"state_level": 4})
+    with api.Environment.manage():
+        env = api.Environment(cr, SUPERUSER_ID, {})
+        spain = env.ref("base.es")
+        _logger.info("Setting Spain NUTS configuration")
+        spain.write(
+            {
+                "state_level": 4,
+            }
+        )

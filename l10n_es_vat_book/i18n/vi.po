@@ -201,11 +201,6 @@ msgid "Date Range:"
 msgstr ""
 
 #. module: l10n_es_vat_book
-#: model:ir.model.fields,field_description:l10n_es_vat_book.field_l10n_es_vat_book_line_tax__deductible_amount
-msgid "Deductible Amount"
-msgstr ""
-
-#. module: l10n_es_vat_book
 #: model:ir.model.fields,field_description:l10n_es_vat_book.field_aeat_vat_book_map_line__display_name
 #: model:ir.model.fields,field_description:l10n_es_vat_book.field_l10n_es_vat_book__display_name
 #: model:ir.model.fields,field_description:l10n_es_vat_book.field_l10n_es_vat_book_line__display_name
@@ -405,21 +400,6 @@ msgid "Journal in which post the move."
 msgstr ""
 
 #. module: l10n_es_vat_book
-#: model:ir.model.fields,field_description:l10n_es_vat_book.field_l10n_es_vat_book_tax_summary__move_line_ids
-msgid "Journal items"
-msgstr ""
-
-#. module: l10n_es_vat_book
-#: model:ir.model.fields,field_description:l10n_es_vat_book.field_l10n_es_vat_book_tax_summary__base_move_line_ids
-msgid "Journal items (Base)"
-msgstr ""
-
-#. module: l10n_es_vat_book
-#: model:ir.model.fields,help:l10n_es_vat_book.field_aeat_vat_book_map_line__tax_excluded_account_id
-msgid "Journal items with this account will be excluded"
-msgstr ""
-
-#. module: l10n_es_vat_book
 #: model:ir.model.fields,field_description:l10n_es_vat_book.field_l10n_es_vat_book__representative_vat
 msgid "L.R. VAT number"
 msgstr ""
@@ -461,7 +441,7 @@ msgstr ""
 
 #. module: l10n_es_vat_book
 #: model:ir.ui.menu,name:l10n_es_vat_book.menu_vat_book_report
-msgid "Libros del IVA y del IRPF"
+msgid "Libro de IVA"
 msgstr ""
 
 #. module: l10n_es_vat_book
@@ -490,19 +470,9 @@ msgid "Model number"
 msgstr ""
 
 #. module: l10n_es_vat_book
-#: model:ir.model.fields.selection,name:l10n_es_vat_book.selection__l10n_es_vat_book__vat_settlement_period__monthly
-msgid "Monthly"
-msgstr ""
-
-#. module: l10n_es_vat_book
 #: model:ir.model.fields,field_description:l10n_es_vat_book.field_l10n_es_vat_book_line_tax__move_line_ids
 #: model_terms:ir.ui.view,arch_db:l10n_es_vat_book.view_vat_book_line_form
 msgid "Move Lines"
-msgstr ""
-
-#. module: l10n_es_vat_book
-#: model:ir.model.fields,field_description:l10n_es_vat_book.field_l10n_es_vat_book_line_tax__base_move_line_ids
-msgid "Move Lines (Base)"
 msgstr ""
 
 #. module: l10n_es_vat_book
@@ -586,11 +556,6 @@ msgid "Previous declaration number"
 msgstr ""
 
 #. module: l10n_es_vat_book
-#: model:ir.model.fields.selection,name:l10n_es_vat_book.selection__l10n_es_vat_book__vat_settlement_period__quarterly
-msgid "Quarterly"
-msgstr ""
-
-#. module: l10n_es_vat_book
 #: model:ir.model.fields.selection,name:l10n_es_vat_book.selection__l10n_es_vat_book_line_tax__special_tax_group__req
 msgid "R.Eq."
 msgstr ""
@@ -655,11 +620,6 @@ msgstr ""
 #. module: l10n_es_vat_book
 #: model:ir.model.fields,field_description:l10n_es_vat_book.field_l10n_es_vat_book__activity_user_id
 msgid "Responsible User"
-msgstr ""
-
-#. module: l10n_es_vat_book
-#: model_terms:ir.ui.view,arch_db:l10n_es_vat_book.view_vat_book_tax_summary_tree
-msgid "Show journal items"
 msgstr ""
 
 #. module: l10n_es_vat_book
@@ -766,7 +726,7 @@ msgid "Tax"
 msgstr ""
 
 #. module: l10n_es_vat_book
-#: model:ir.model.fields,field_description:l10n_es_vat_book.field_aeat_vat_book_map_line__tax_excluded_account_id
+#: model:ir.model.fields,field_description:l10n_es_vat_book.field_aeat_vat_book_map_line__tax_account_id
 msgid "Tax Account Restriction"
 msgstr ""
 
@@ -900,11 +860,6 @@ msgstr ""
 #. module: l10n_es_vat_book
 #: model:ir.model,name:l10n_es_vat_book.model_report_l10n_es_vat_book_l10n_es_vat_book_xlsx
 msgid "Vat Number Xlsx"
-msgstr ""
-
-#. module: l10n_es_vat_book
-#: model:ir.model.fields,field_description:l10n_es_vat_book.field_l10n_es_vat_book__vat_settlement_period
-msgid "Vat Settlement Period"
 msgstr ""
 
 #. module: l10n_es_vat_book

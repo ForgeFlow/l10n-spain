@@ -3,7 +3,7 @@
 
 {
     "name": "AEAT modelo 390",
-    "version": "16.0.2.12.3",
+    "version": "16.0.2.7.0",
     "category": "Localisation/Accounting",
     "author": "Tecnativa, Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/l10n-spain",
@@ -19,7 +19,6 @@
         "data/aeat_export_mod390_2019_sub07_data.xml",
         "data/aeat_export_mod390_2019_sub08_data.xml",
         "data/aeat_export_mod390_2019_main_data.xml",
-        "data/tax_code_map_mod390_data.xml",  # should be before 204 tax mapping
         # 2021
         "data/2021/aeat.model.export.config.csv",
         "data/2021/aeat.model.export.config.line.csv",
@@ -29,15 +28,8 @@
         # 2023
         "data/2023/aeat.model.export.config.csv",
         "data/2023/aeat.model.export.config.line.csv",
-        # 2024
-        "data/2024/aeat.model.export.config.csv",
-        "data/2024/aeat.model.export.config.line.csv",
-        "data/2024/l10n.es.aeat.map.tax.csv",
-        "data/2024/l10n.es.aeat.map.tax.line.csv",
-        # 2025
-        "data/2025/aeat.model.export.config.csv",
-        "data/2025/aeat.model.export.config.line.csv",
         # rest of stuff
+        "data/tax_code_map_mod390_data.xml",
         "views/mod390_view.xml",
         "views/account_move_view.xml",
         "security/ir.model.access.csv",

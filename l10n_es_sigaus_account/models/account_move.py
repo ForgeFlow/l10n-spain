@@ -21,7 +21,6 @@ class AccountMove(models.Model):
         "company_id",
         "fiscal_position_id",
         "move_type",
-        "partner_id",
     )
     def _compute_is_sigaus(self):
         for rec in self:
@@ -64,47 +63,45 @@ class AccountMove(models.Model):
         return []
 
     def manage_sigaus_invoice_lines(self):
-        for rec in self:
-            independent_lines_domain = rec.get_independent_invoice_lines_domain()
-            independent_sigaus_lines_domain = expression.AND(
+        self.ensure_one()
+        independent_lines_domain = self.get_independent_invoice_lines_domain()
+        independent_sigaus_lines_domain = expression.AND(
+            [
                 [
-                    [
-                        ("move_id", "=", rec.id),
-                        ("is_sigaus", "=", True),
-                    ],
-                    independent_lines_domain,
-                ]
-            )
-            rec.env["account.move.line"].search(
-                independent_sigaus_lines_domain
-            ).unlink()
-            # Invoice lines not related to other documents (i.e. sales)
-            independent_lines_domain = expression.AND(
+                    ("move_id", "=", self.id),
+                    ("is_sigaus", "=", True),
+                ],
+                independent_lines_domain,
+            ]
+        )
+        self.env["account.move.line"].search(independent_sigaus_lines_domain).unlink()
+        # Invoice lines not related to other documents (i.e. sales)
+        independent_lines_domain = expression.AND(
+            [
                 [
-                    [
-                        ("move_id", "=", rec.id),
-                        ("product_id", "!=", False),
-                        ("product_id.sigaus_has_amount", "=", True),
-                    ],
-                    independent_lines_domain,
-                ]
-            )
-            independent_lines = rec.env["account.move.line"].search(
-                independent_lines_domain
-            )
-            if independent_lines:
-                rec.create_sigaus_line(independent_lines)
+                    ("move_id", "=", self.id),
+                    ("product_id", "!=", False),
+                    ("product_id.sigaus_has_amount", "=", True),
+                ],
+                independent_lines_domain,
+            ]
+        )
+        independent_lines = self.env["account.move.line"].search(
+            independent_lines_domain
+        )
+        if independent_lines:
+            self.create_sigaus_line(independent_lines)
 
     def create_sigaus_line(self, lines, **kwargs):
         values = self._get_sigaus_line_vals(lines, **kwargs)
         self.env["account.move.line"].create(values)
 
     def apply_sigaus(self):
-        f_invoices = self.filtered(
+        for invoice in self.filtered(
             lambda a: a.state == "draft" and a.is_sigaus and a.sigaus_is_date and a.id
-        )
-        f_invoices.automatic_sigaus_exception()
-        f_invoices.with_context(avoid_recursion=True).manage_sigaus_invoice_lines()
+        ):
+            invoice.automatic_sigaus_exception()
+            invoice.with_context(avoid_recursion=True).manage_sigaus_invoice_lines()
 
     def write(self, vals):
         res = super().write(vals)
@@ -126,7 +123,7 @@ class AccountMove(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         moves = super().create(vals_list)
-        f_moves = moves.filtered(lambda a: a.is_sigaus and a.sigaus_is_date)
-        f_moves.automatic_sigaus_exception()
-        f_moves.apply_sigaus()
+        for move in moves.filtered(lambda a: a.is_sigaus and a.sigaus_is_date):
+            move.automatic_sigaus_exception()
+            move.apply_sigaus()
         return moves
