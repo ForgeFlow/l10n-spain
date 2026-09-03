@@ -561,3 +561,103 @@ class TestVerifactuSendResponse(TestVerifactuCommon):
             activity,
             "A warning activity should be created for 'AceptadoConErrores' response",
         )
+
+
+class TestVerifactuHashStartDate(TestVerifactuCommon):
+    def _create_invoice(self, name, date):
+        return self.env["account.move"].create(
+            {
+                "company_id": self.company.id,
+                "partner_id": self.partner.id,
+                "move_type": "out_invoice",
+                "invoice_date": date,
+                "date": date,
+                "name": name,
+                "aeat_state": "sent",
+                "invoice_line_ids": [
+                    Command.create(
+                        {
+                            "product_id": self.product.id,
+                            "account_id": self.account_expense.id,
+                            "name": "Test line",
+                            "price_unit": 100,
+                            "quantity": 1,
+                        }
+                    )
+                ],
+            }
+        )
+
+    def _setup_history_with_gap(self):
+        journal = self.env["account.journal"].search(
+            [("company_id", "=", self.company.id), ("type", "=", "sale")], limit=1
+        )
+        self.company.verifactu_enabled = False
+        journal.restrict_mode_hash_table = False
+        self.pre_1 = self._create_invoice("PRE/2026/00001", "2026-01-10")
+        self.pre_1.action_post()
+        self.pre_3 = self._create_invoice("PRE/2026/00003", "2026-01-20")
+        self.pre_3.action_post()
+        self.assertFalse(self.pre_1.inalterable_hash)
+        self.assertFalse(self.pre_3.inalterable_hash)
+        self.company.verifactu_start_date = "2026-06-01"
+        self.company.verifactu_enabled = True
+        self.assertTrue(journal.restrict_mode_hash_table)
+        return journal
+
+    def test_gap_before_start_date_is_ignored(self):
+        self._setup_history_with_gap()
+        invoice = self._create_invoice("PRE/2026/00004", "2026-07-01")
+        invoice.action_post()
+        self.assertTrue(invoice.inalterable_hash)
+        self.assertFalse(self.pre_1.inalterable_hash)
+        self.assertFalse(self.pre_3.inalterable_hash)
+
+    def test_gap_after_start_date_still_blocks(self):
+        self._setup_history_with_gap()
+        invoice = self._create_invoice("PRE/2026/00004", "2026-07-01")
+        invoice.action_post()
+        invoice_gap = self._create_invoice("PRE/2026/00006", "2026-07-05")
+        with self.assertRaises(UserError):
+            invoice_gap.action_post()
+
+    def test_integrity_report_is_verified(self):
+        self.env.user.groups_id |= self.env.ref("account.group_account_user")
+        self._setup_history_with_gap()
+        self._create_invoice("PRE/2026/00004", "2026-07-01").action_post()
+        self._create_invoice("PRE/2026/00005", "2026-07-02").action_post()
+        results = self.company._check_hash_integrity()["results"]
+        chain = [r for r in results if "PRE/2026/" in r["journal_name"]]
+        self.assertEqual(len(chain), 1)
+        self.assertEqual(chain[0]["status"], "verified")
+        self.assertEqual(chain[0]["first_move_name"], "PRE/2026/00004")
+        self.assertEqual(chain[0]["last_move_name"], "PRE/2026/00005")
+
+    def test_existing_chain_is_not_relaxed(self):
+        journal = self.env["account.journal"].search(
+            [("company_id", "=", self.company.id), ("type", "=", "sale")], limit=1
+        )
+        self.company.verifactu_enabled = False
+        journal.restrict_mode_hash_table = True
+        first = self._create_invoice("OLD/2026/00001", "2026-01-10")
+        first.action_post()
+        self.assertTrue(first.inalterable_hash)
+        self.company.verifactu_start_date = "2026-12-01"
+        self.company.verifactu_enabled = True
+        second = self._create_invoice("OLD/2026/00002", "2026-02-10")
+        second.action_post()
+        self.assertTrue(second.inalterable_hash)
+
+    def test_chain_in_other_prefix_does_not_block(self):
+        journal = self.env["account.journal"].search(
+            [("company_id", "=", self.company.id), ("type", "=", "sale")], limit=1
+        )
+        self.company.verifactu_enabled = False
+        journal.restrict_mode_hash_table = True
+        old = self._create_invoice("OLD/2025/00001", "2025-12-10")
+        old.action_post()
+        self.assertTrue(old.inalterable_hash)
+        self._setup_history_with_gap()
+        invoice = self._create_invoice("PRE/2026/00004", "2026-07-01")
+        invoice.action_post()
+        self.assertTrue(invoice.inalterable_hash)

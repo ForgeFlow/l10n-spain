@@ -10,6 +10,7 @@ import pytz
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
+from odoo.osv import expression
 
 VERIFACTU_VALID_INVOICE_STATES = ["posted"]
 VERIFACTU_OPERATION_MAPPING = {
@@ -467,6 +468,36 @@ class AccountMove(models.Model):
                 ("importe", f"{amount_total:.2f}"),  # noqa
             ]
         )
+
+    @api.model
+    def _get_move_hash_domain(self, common_domain=False, force_hash=False):
+        domain = super()._get_move_hash_domain(
+            common_domain=common_domain, force_hash=force_hash
+        )
+        journals = self.env["account.journal"].search(
+            [
+                ("restrict_mode_hash_table_readonly", "=", True),
+                ("company_id.verifactu_start_date", "!=", False),
+            ]
+        )
+        for journal in journals:
+            hashed_prefixes = self.sudo()._read_group(
+                [("journal_id", "=", journal.id), ("inalterable_hash", "!=", False)],
+                ["sequence_prefix"],
+            )
+            domain = expression.AND(
+                [
+                    domain,
+                    [
+                        "|",
+                        "|",
+                        ("journal_id", "!=", journal.id),
+                        ("sequence_prefix", "in", [p for (p,) in hashed_prefixes]),
+                        ("date", ">=", journal.company_id.verifactu_start_date),
+                    ],
+                ]
+            )
+        return domain
 
     def _post(self, soft=True):
         res = super()._post(soft=soft)
