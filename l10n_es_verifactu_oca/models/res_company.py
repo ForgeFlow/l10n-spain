@@ -2,7 +2,7 @@
 # Copyright 2025 Tecnativa - Pedro M. Baeza
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
-from odoo import fields, models
+from odoo import _, api, fields, models
 
 
 class ResCompany(models.Model):
@@ -37,6 +37,36 @@ class ResCompany(models.Model):
         tracking=True,
     )
 
+    def _get_verifactu_moves_to_seal(self):
+        return self.env["account.move"].search(
+            [
+                ("company_id", "in", self.ids),
+                ("journal_id.type", "=", "sale"),
+                ("state", "=", "posted"),
+                ("inalterable_hash", "=", False),
+            ]
+        )
+
+    @api.onchange("verifactu_enabled")
+    def _onchange_verifactu_enabled(self):
+        if not self.verifactu_enabled:
+            return
+        count = len(self._origin._get_verifactu_moves_to_seal())
+        if not count:
+            return
+        return {
+            "warning": {
+                "title": _("VERI*FACTU activation"),
+                "message": _(
+                    "%s posted customer invoices will be secured with an "
+                    "inalterability hash. Once secured they can no longer be "
+                    "modified nor reset to draft, so fix any pending invoice "
+                    "before enabling VERI*FACTU.",
+                    count,
+                ),
+            }
+        }
+
     def write(self, vals):
         # As the compute is not triggered automatically, we need to manually trigger it
         # rewriting the flag at journal level.
@@ -45,4 +75,7 @@ class ResCompany(models.Model):
             self.env["account.journal"].search(
                 [("company_id", "in", self.ids), ("type", "=", "sale")]
             ).verifactu_enabled = True
+            self._get_verifactu_moves_to_seal()._hash_moves(
+                force_hash=True, raise_if_gap=False, raise_if_no_document=False
+            )
         return res
