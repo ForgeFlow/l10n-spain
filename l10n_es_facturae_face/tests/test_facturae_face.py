@@ -6,7 +6,6 @@ import os
 from datetime import datetime, timedelta
 from unittest import mock
 
-import requests
 from freezegun import freeze_time
 
 from odoo import exceptions
@@ -19,6 +18,7 @@ from odoo.addons.l10n_es_aeat.tests.test_l10n_es_aeat_certificate import (
 _logger = logging.getLogger(__name__)
 try:
     from zeep import Client
+    from zeep.exceptions import Fault
 except (OSError, ImportError) as err:
     _logger.info(err)
 
@@ -43,7 +43,6 @@ class DemoService:
 class TestL10nEsFacturaeFace(EDIBackendCommonTestCase, TestL10nEsAeatCertificateBase):
     @classmethod
     def setUpClass(cls):
-        cls._super_send = requests.Session.send
         super().setUpClass()
         cls.env["ir.config_parameter"].sudo().set_param(
             "facturae.face.ws",
@@ -188,10 +187,13 @@ class TestL10nEsFacturaeFace(EDIBackendCommonTestCase, TestL10nEsAeatCertificate
             "l10n_es_facturae_face.facturae_face_update_exchange_type"
         )
 
-    # Don't block external requests.
-    @classmethod
-    def _request_handler(cls, s, r, /, **kw):
-        return cls._super_send(s, r, **kw)
+    def setUp(self):
+        super().setUp()
+        patcher = mock.patch(
+            "zeep.client.ServiceProxy", side_effect=Fault("Not reachable in tests")
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_constrain_company_mail(self):
         with self.assertRaises(exceptions.ValidationError):
