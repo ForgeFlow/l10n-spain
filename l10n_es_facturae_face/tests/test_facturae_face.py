@@ -18,7 +18,7 @@ from odoo.addons.l10n_es_aeat.tests.test_l10n_es_aeat_certificate import (
 _logger = logging.getLogger(__name__)
 try:
     from zeep import Client
-    from zeep.exceptions import Fault
+    from zeep.exceptions import Fault, SignatureVerificationFailed
 except (OSError, ImportError) as err:
     _logger.info(err)
 
@@ -226,6 +226,21 @@ class TestL10nEsFacturaeFace(EDIBackendCommonTestCase, TestL10nEsAeatCertificate
         exchange_record = self.move.exchange_record_ids
         self.assertEqual(exchange_record.edi_exchange_state, "output_pending")
         exchange_record.backend_id.exchange_send(exchange_record)
+        self.assertEqual(exchange_record.edi_exchange_state, "output_error_on_send")
+
+    def test_facturae_face_signature_error(self):
+        self._activate_certificate(self.certificate_password)
+        self.move.with_context(
+            force_edi_send=True, test_queue_job_no_delay=True
+        ).action_post()
+        self.move.invalidate_recordset()
+        exchange_record = self.move.exchange_record_ids
+        self.assertEqual(exchange_record.edi_exchange_state, "output_pending")
+        with mock.patch("zeep.client.ServiceProxy") as mock_client:
+            mock_client.return_value.enviarFactura.side_effect = (
+                SignatureVerificationFailed()
+            )
+            exchange_record.backend_id.exchange_send(exchange_record)
         self.assertEqual(exchange_record.edi_exchange_state, "output_error_on_send")
 
     def test_create_facturae_file_without_organo_gestor(self):

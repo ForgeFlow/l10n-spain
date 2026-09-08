@@ -61,7 +61,7 @@ class L10nEsFacturaeFaceBaseHandler(models.AbstractModel):
         )
         try:
             response = client.service.enviarFactura(invoice_call)
-        except zeep.exceptions.Fault as err:
+        except zeep.exceptions.Error as err:
             raise ValidationError(
                 self.env._("Connection with FACe returned error: %(error)s", error=err)
             ) from err
@@ -73,7 +73,7 @@ class L10nEsFacturaeFaceBaseHandler(models.AbstractModel):
         client = self._get_client(public_crt, private_key)
         try:
             return client.service.consultarFactura(invoice_number)
-        except zeep.exceptions.Fault as err:
+        except zeep.exceptions.Error as err:
             raise ValidationError(
                 self.env._("Connection with FACe returned error: %(error)s", error=err)
             ) from err
@@ -83,7 +83,7 @@ class L10nEsFacturaeFaceBaseHandler(models.AbstractModel):
         request = client.get_type("ns0:ConsultarListadoFacturaRequest")(invoices)
         try:
             return client.service.consultarListadoFacturas(request)
-        except zeep.exceptions.Fault as err:
+        except zeep.exceptions.Error as err:
             raise ValidationError(
                 self.env._("Connection with FACe returned error: %(error)s", error=err)
             ) from err
@@ -92,7 +92,7 @@ class L10nEsFacturaeFaceBaseHandler(models.AbstractModel):
         client = self._get_client(public_crt, private_key)
         try:
             response = client.service.anularFactura(identifier, motive)
-        except zeep.exceptions.Fault as err:
+        except zeep.exceptions.Error as err:
             raise ValidationError(
                 self.env._("Connection with FACe returned error: %(error)s", error=err)
             ) from err
